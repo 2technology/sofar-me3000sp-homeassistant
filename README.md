@@ -12,6 +12,21 @@ Deze repo gebruikt:
 - SMA PV-opbrengst als PV-bron
 - SOFAR alleen als actuator
 
+## Hoe werkt het?
+
+```mermaid
+flowchart LR
+    SM["Slimme meter
+    export/import kW"] -->|"realtime data"| HA["Home Assistant
+    package + automations"]
+    SMA["SMA PV
+    power W"] -->|"realtime data"| HA
+    HA -->|"mode + charge/discharge rate"| ESP["ESP32 + MAX3485
+    ESPHome"]
+    ESP -->|"Modbus 0x42"| SOFAR["SOFAR ME3000SP"]
+    SOFAR -->|"SOC, faults, status"| HA
+```
+
 ## Snelstart
 
 1. Flash de ESP32 met:
@@ -55,9 +70,12 @@ home-assistant/dashboards/sofar_me3000sp_wall_panel.yaml
 | `home-assistant/dashboards/sofar_me3000sp_wall_panel.yaml` | Mooie wall-panel dashboardkaart |
 | `home-assistant/dashboards/sofar_me3000sp_mushroom_basic.yaml` | Eenvoudigere Mushroom dashboardkaart |
 | `esphome/sofar-me3000sp-esp32.yaml` | ESP32/MAX3485 firmware voor SOFAR control |
+| `esphome/secrets.yaml.example` | Voorbeeld secrets (kopieer naar secrets.yaml) |
 | `docs/INSTALLATIE.md` | Stap-voor-stap installatie voor beginners |
-| `docs/TROUBLESHOOTING.md` | Foutzoeken |
+| `docs/TROUBLESHOOTING.md` | Uitgebreide foutzoekgids |
 | `docs/ARCHITECTUUR.md` | Uitleg van de regelstrategie |
+| `docs/AANPASSEN.md` | Hoe pas je dit aan voor jouw setup? |
+| `CHANGELOG.md` | Wat is er veranderd per versie? |
 
 ## Verwachte Home Assistant bronentities
 

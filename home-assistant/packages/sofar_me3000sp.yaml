@@ -424,6 +424,40 @@ automation:
             Inverter in STANDBY gezet wegens alarm:
             {{ states('sensor.sofar_me3000sp_sofar_me3000sp_fault_messages') }}
 
+  - id: sofar_force_charge_low_soc
+    alias: "🪫 SOFAR: Force Charge bij kritisch lage SOC"
+    description: "Laad batterij ongeacht PV/export als SOC onder 20% zakt"
+    mode: single
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc
+        below: 20
+    condition:
+      - condition: state
+        entity_id: sensor.sofar_me3000sp_sofar_me3000sp_fault_messages
+        state: "OK"
+    action:
+      - service: select.select_option
+        target:
+          entity_id: select.sofar_me3000sp_sofar_me3000sp_mode
+        data:
+          option: "charge"
+      - service: number.set_value
+        target:
+          entity_id: number.sofar_me3000sp_sofar_me3000sp_charge_rate
+        data:
+          value: 1500
+      - wait_for_trigger:
+          - platform: numeric_state
+            entity_id: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc
+            above: 50
+        timeout: "04:00:00"
+      - service: select.select_option
+        target:
+          entity_id: select.sofar_me3000sp_sofar_me3000sp_mode
+        data:
+          option: "auto"
+
   - id: sofar_battery_full_notify
     alias: "🔋 SOFAR: Batterij vol notificatie"
     description: "Stuur notificatie als batterij 100% bereikt"

@@ -1,6 +1,7 @@
 # SOFAR ME3000SP — Wall Panel Dashboard
 # Vereist: HACS + Mushroom Cards
 # Optioneel maar aanbevolen: card-mod voor de kleuraccenten
+# Zonder card-mod werken de kleurranden en glow niet, maar de kaart blijft functioneel.
 # Gebruik: plak de inhoud onder `cards:` of als sectie in een YAML-dashboard.
 
 wall_panel:

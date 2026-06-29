@@ -1,6 +1,6 @@
 # SOFAR ME3000SP — Mushroom Dashboard Section
 # Vereist: HACS + Mushroom Cards
-# Entities uit sofar_me3000sp-homeassistant-package.yaml
+# Entities uit sofar_me3000sp.yaml (Home Assistant package)
 
 mushroom_section:
   type: vertical-stack

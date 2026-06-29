@@ -1,0 +1,16 @@
+# ESPHome build artifacts
+.esphome/
+*.bin
+*.elf
+
+# Editor temp files
+*.swp
+*~
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Secrets (nooit committen!)
+esphome/secrets.yaml

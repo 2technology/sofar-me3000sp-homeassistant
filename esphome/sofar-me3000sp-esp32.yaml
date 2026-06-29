@@ -65,10 +65,11 @@ wifi:
 captive_portal:
 
 # ---------------------------------------------------------------------------
-# Web server (optioneel — voor debugging)
+# Web server (OPTIONEEL — alleen voor debugging!)
+# Zet dit UIT in productie: de web server heeft geen authenticatie.
 # ---------------------------------------------------------------------------
-web_server:
-  port: 80
+# web_server:
+#   port: 80
 
 # ---------------------------------------------------------------------------
 # UART — RS485 via MAX3485 met hardware flow control
@@ -101,12 +102,13 @@ modbus_controller:
     update_interval: 30s
 
   # Snelle controller — 5s update voor monitoring/debug; NIET gebruiken voor automation
-  - id: me3000sp_rapid
-    address: 0x01
-    modbus_id: modbus_me3000sp
-    command_throttle: 100ms
-    setup_priority: -10
-    update_interval: 5s
+  # LET OP: deze controller is optioneel. Verwijder hem als je geen snelle polling nodig hebt.
+  # - id: me3000sp_rapid
+  #   address: 0x01
+  #   modbus_id: modbus_me3000sp
+  #   command_throttle: 100ms
+  #   setup_priority: -10
+  #   update_interval: 5s
 
 # ===========================================================================
 # TEXT SENSORS
@@ -629,31 +631,6 @@ sensor:
     register_type: holding
     value_type: U_WORD
     state_class: measurement
-    accuracy_decimals: 0
-
-  # --- Snelle interne sensors voor battery_save mode ---
-  - platform: modbus_controller
-    modbus_controller_id: me3000sp_rapid
-    name: "${device_verbose_name} PV Power Rapid"
-    id: pv_power_rapid
-    internal: true
-    address: 0x0215
-    register_type: holding
-    value_type: U_WORD
-    filters:
-      - multiply: 10
-    accuracy_decimals: 0
-
-  - platform: modbus_controller
-    modbus_controller_id: me3000sp_rapid
-    name: "${device_verbose_name} Load Power Rapid"
-    id: load_power_rapid
-    internal: true
-    address: 0x0213
-    register_type: holding
-    value_type: U_WORD
-    filters:
-      - multiply: 10
     accuracy_decimals: 0
 
 # ===========================================================================
