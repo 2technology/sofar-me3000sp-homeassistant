@@ -1,0 +1,103 @@
+# SOFAR ME3000SP — Mushroom Dashboard Section
+# Vereist: HACS + Mushroom Cards
+# Entities uit sofar_me3000sp-homeassistant-package.yaml
+
+mushroom_section:
+  type: vertical-stack
+  cards:
+    - type: custom:mushroom-title-card
+      title: SOFAR ME3000SP
+      subtitle: Externe-bron-sturing met slimme meter + SMA PV
+
+    - type: custom:mushroom-template-card
+      entity: sensor.sofar_flow_direction
+      primary: >-
+        {% set d = states('sensor.sofar_flow_direction') %}
+        {% if d == 'charging' %}Laden{% elif d == 'discharging' %}Ontladen{% elif d == 'exporting' %}Export{% elif d == 'importing' %}Import{% elif d == 'balanced' %}Balans{% elif d == 'standby' %}Standby{% elif d == 'alarm' %}Alarm{% else %}Onbekend{% endif %}
+      secondary: "{{ states('sensor.sofar_visual_summary') }}"
+      icon: >-
+        {% set d = states('sensor.sofar_flow_direction') %}
+        {% if d == 'charging' %}mdi:battery-arrow-up{% elif d == 'discharging' %}mdi:battery-arrow-down{% elif d == 'exporting' %}mdi:transmission-tower-export{% elif d == 'importing' %}mdi:transmission-tower-import{% elif d == 'balanced' %}mdi:scale-balance{% elif d == 'standby' %}mdi:pause-circle{% elif d == 'alarm' %}mdi:alert-circle{% else %}mdi:help-circle{% endif %}
+      icon_color: >-
+        {% set d = states('sensor.sofar_flow_direction') %}
+        {% if d == 'charging' %}green{% elif d == 'discharging' %}amber{% elif d == 'exporting' %}blue{% elif d == 'importing' %}red{% elif d == 'balanced' %}teal{% elif d == 'standby' %}grey{% elif d == 'alarm' %}red{% else %}disabled{% endif %}
+      layout: horizontal
+      tap_action:
+        action: more-info
+
+    - type: custom:mushroom-chips-card
+      chips:
+        - type: entity
+          entity: binary_sensor.sofar_charging_active
+          name: Laden
+          icon: mdi:battery-arrow-up
+        - type: entity
+          entity: binary_sensor.sofar_discharging_active
+          name: Ontladen
+          icon: mdi:battery-arrow-down
+        - type: entity
+          entity: binary_sensor.sofar_exporting
+          name: Export
+          icon: mdi:transmission-tower-export
+        - type: entity
+          entity: binary_sensor.sofar_importing
+          name: Import
+          icon: mdi:transmission-tower-import
+        - type: entity
+          entity: binary_sensor.sofar_balanced_grid
+          name: Balans
+          icon: mdi:scale-balance
+        - type: entity
+          entity: binary_sensor.sofar_alarm_active
+          name: Alarm
+          icon: mdi:alert-circle
+
+    - type: entities
+      title: Energieflow
+      show_header_toggle: false
+      entities:
+        - entity: sensor.sofar_sma_pv_power
+          name: PV opbrengst
+        - entity: sensor.sofar_grid_export_power
+          name: Net export
+        - entity: sensor.sofar_grid_import_power
+          name: Net import
+        - entity: sensor.sofar_net_grid_power
+          name: Netto grid
+        - entity: sensor.sofar_grid_surplus_power
+          name: Surplus
+        - entity: sensor.sofar_grid_deficit_power
+          name: Deficit
+        - entity: sensor.sofar_house_load_power
+          name: Huislast
+        - entity: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc
+          name: Batterij SOC
+        - entity: sensor.sofar_me3000sp_sofar_me3000sp_battery_power
+          name: Batterij vermogen
+        - entity: select.sofar_me3000sp_sofar_me3000sp_mode
+          name: Inverter mode
+
+    - type: gauge
+      entity: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc
+      name: Batterij SOC
+      min: 0
+      max: 100
+      needle: true
+      severity:
+        green: 60
+        yellow: 30
+        red: 10
+
+    - type: history-graph
+      title: Actuele trend
+      hours_to_show: 24
+      refresh_interval: 60
+      entities:
+        - entity: sensor.sofar_sma_pv_power
+          name: PV
+        - entity: sensor.sofar_grid_export_power
+          name: Export
+        - entity: sensor.sofar_grid_import_power
+          name: Import
+        - entity: sensor.sofar_net_grid_power
+          name: Netto grid

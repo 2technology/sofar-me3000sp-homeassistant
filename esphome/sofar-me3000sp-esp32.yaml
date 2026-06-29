@@ -1,0 +1,761 @@
+# =============================================================================
+# ESPHome configuratie voor SOFAR ME3000SP — ESP32 + MAX3485 RS485
+# Volledige read/write control via Modbus functiecode 0x42 (Passive Mode)
+#
+# Bronnen:
+#   - rnorth/sofar-inverter-control (custom_command 0x42)
+#   - stuartpittaway/ESPHOME_ME3000SP (sensor register map)
+#   - Gareth's blog (fault decoding + ESP32 pinout)
+#   - cliffdude/SofarCtrl (protocol reverse-engineering)
+#
+# Hardware:
+#   - ESP32 Dev Board (bv. ESP32-DevKitC, Wemos D1 Mini ESP32)
+#   - MAX3485 TTL-naar-RS485 module (3.3V, rood board, DE+RE pinnen)
+#   - Bedrading: ESP32 GPIO16→MAX3485 RO, GPIO17→MAX3485 DI
+#                 GPIO5→MAX3485 DE+RE (samen), 3.3V→VCC, GND→GND
+#   - MAX3485 A→ME3000SP 485s-A, B→ME3000SP 485s-B
+#
+# ⚠️ De ME3000SP moet in PASSIVE MODE staan (via het display-menu)
+# =============================================================================
+
+substitutions:
+  device_name: "sofar-me3000sp"
+  device_verbose_name: "SOFAR ME3000SP"
+
+esphome:
+  name: ${device_name}
+  platform: ESP32
+  board: esp32dev
+
+  on_boot:
+    priority: -100
+    then:
+      # Zet inverter in auto-modus bij boot (veilige default)
+      - lambda: |-
+          ESP_LOGI("sofar", "Boot: setting auto mode");
+          auto *controller = id(me3000sp);
+          std::vector<uint8_t> payload = {0x01, 0x42, 0x01, 0x03, 0x00, 0x00};
+          auto command = modbus_controller::ModbusCommandItem::create_custom_command(controller, payload);
+          controller->queue_command(command);
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+logger:
+  level: INFO
+  baud_rate: 0
+
+# ---------------------------------------------------------------------------
+# Home Assistant API (native, geen MQTT nodig)
+# ---------------------------------------------------------------------------
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${device_verbose_name} Fallback"
+    password: !secret fallback_ap_password
+
+captive_portal:
+
+# ---------------------------------------------------------------------------
+# Web server (optioneel — voor debugging)
+# ---------------------------------------------------------------------------
+web_server:
+  port: 80
+
+# ---------------------------------------------------------------------------
+# UART — RS485 via MAX3485 met hardware flow control
+# GPIO16 = RX (van MAX3485 RO)
+# GPIO17 = TX (naar MAX3485 DI)
+# GPIO5  = flow_control (MAX3485 DE + RE samen)
+# ---------------------------------------------------------------------------
+uart:
+  - id: mod_bus
+    tx_pin: GPIO17
+    rx_pin: GPIO16
+    baud_rate: 9600
+    stop_bits: 1
+    data_bits: 8
+    parity: NONE
+
+modbus:
+  id: modbus_me3000sp
+  uart_id: mod_bus
+  send_wait_time: 200ms
+  flow_control_pin: GPIO5
+
+modbus_controller:
+  # Hoofdcontroller — 30s update voor trage sensoren
+  - id: me3000sp
+    address: 0x01
+    modbus_id: modbus_me3000sp
+    command_throttle: 100ms
+    setup_priority: -10
+    update_interval: 30s
+
+  # Snelle controller — 5s update voor monitoring/debug; NIET gebruiken voor automation
+  - id: me3000sp_rapid
+    address: 0x01
+    modbus_id: modbus_me3000sp
+    command_throttle: 100ms
+    setup_priority: -10
+    update_interval: 5s
+
+# ===========================================================================
+# TEXT SENSORS
+# ===========================================================================
+text_sensor:
+  # --- Running State (0x0200) ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Running State"
+    id: running_state
+    register_type: holding
+    address: 0x0200
+    raw_encode: HEXBYTES
+    lambda: |-
+      uint16_t value = modbus_controller::word_from_hex_str(x, 0);
+      switch (value) {
+        case 0: return std::string("Wait");
+        case 1: return std::string("Check");
+        case 2: return std::string("Charging");
+        case 3: return std::string("Check Discharge");
+        case 4: return std::string("Discharging");
+        case 5: return std::string("EPS");
+        case 6: return std::string("Fault (temporary)");
+        case 7: return std::string("Fault (permanent)");
+        default: return std::string("Unknown");
+      }
+
+  # --- Fault Messages (0x0201-0x0205) met volledige bit-decode ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Fault Messages"
+    id: fault_messages
+    register_type: holding
+    address: 0x0201
+    register_count: 5
+    response_size: 10
+    lambda: |-
+      std::string z = "";
+      int idx = item->offset;
+      // Byte 0
+      if ((data[idx] & 0x01) != 0) z += "ID01-GridOVP, ";
+      if ((data[idx] & 0x02) != 0) z += "ID02-GridUVP, ";
+      if ((data[idx] & 0x04) != 0) z += "ID03-GridOFP, ";
+      if ((data[idx] & 0x08) != 0) z += "ID04-GridUFP, ";
+      if ((data[idx] & 0x10) != 0) z += "ID05-BattOVP, ";
+      if ((data[idx] & 0x20) != 0) z += "ID06-GridLVRT, ";
+      if ((data[idx] & 0x40) != 0) z += "ID07, ";
+      if ((data[idx] & 0x80) != 0) z += "ID08, ";
+      // Byte 1
+      idx++;
+      if ((data[idx] & 0x01) != 0) z += "ID09-PVOVP, ";
+      if ((data[idx] & 0x02) != 0) z += "ID10-IpvUnbalance, ";
+      if ((data[idx] & 0x04) != 0) z += "ID11-PvConfigSetWrong, ";
+      if ((data[idx] & 0x08) != 0) z += "ID12-GFCIFault, ";
+      if ((data[idx] & 0x10) != 0) z += "ID13-PhaseSequenceFault, ";
+      if ((data[idx] & 0x20) != 0) z += "ID14-HwBoostOCP, ";
+      if ((data[idx] & 0x40) != 0) z += "ID15-HwAcOCP, ";
+      if ((data[idx] & 0x80) != 0) z += "ID16-AcRmsOCP, ";
+      // Byte 2
+      idx++;
+      if ((data[idx] & 0x01) != 0) z += "ID17-HwADFaultIGrid, ";
+      if ((data[idx] & 0x02) != 0) z += "ID18-HwADFaultDCI, ";
+      if ((data[idx] & 0x04) != 0) z += "ID19-HwADFaultVGrid, ";
+      if ((data[idx] & 0x08) != 0) z += "ID20-GFCIDeviceFault, ";
+      if ((data[idx] & 0x10) != 0) z += "ID21-MChipFault, ";
+      if ((data[idx] & 0x20) != 0) z += "ID22-HwAuxPowerFault, ";
+      if ((data[idx] & 0x40) != 0) z += "ID23-BusVoltZeroFault, ";
+      if ((data[idx] & 0x80) != 0) z += "ID24-IacRmsUnbalance, ";
+      // Byte 3
+      idx++;
+      if ((data[idx] & 0x01) != 0) z += "ID25-BusUVP, ";
+      if ((data[idx] & 0x02) != 0) z += "ID26-BusOVP, ";
+      if ((data[idx] & 0x04) != 0) z += "ID27-VbusUnbalance, ";
+      if ((data[idx] & 0x08) != 0) z += "ID28-DciOCP, ";
+      if ((data[idx] & 0x10) != 0) z += "ID29-SwOCPInstant, ";
+      if ((data[idx] & 0x20) != 0) z += "ID30-SwBOCPInstant, ";
+      // Byte 4
+      idx++;
+      if (data[idx] != 0) z += "ID33-40, ";
+      // Byte 5
+      idx++;
+      if (data[idx] != 0) z += "ID41-48, ";
+      // Byte 6
+      idx++;
+      if ((data[idx] & 0x01) != 0) z += "ID49-ConsistentFaultVGrid, ";
+      if ((data[idx] & 0x02) != 0) z += "ID50-ConsistentFaultFGrid, ";
+      if ((data[idx] & 0x04) != 0) z += "ID51-ConsistentFaultDCI, ";
+      if ((data[idx] & 0x08) != 0) z += "ID52-ConsistentFaultGFCI, ";
+      if ((data[idx] & 0x10) != 0) z += "ID53-SpiCommLose, ";
+      if ((data[idx] & 0x20) != 0) z += "ID54-SciCommLose, ";
+      if ((data[idx] & 0x40) != 0) z += "ID55-RelayTestFail, ";
+      if ((data[idx] & 0x80) != 0) z += "ID56-PvIsoFault, ";
+      // Byte 7
+      idx++;
+      if ((data[idx] & 0x01) != 0) z += "ID57-OverTempFaultInv, ";
+      if ((data[idx] & 0x02) != 0) z += "ID58-OverTempFaultBoost, ";
+      if ((data[idx] & 0x04) != 0) z += "ID59-OverTempFaultEnv, ";
+      if ((data[idx] & 0x08) != 0) z += "ID60-PEConnectFault, ";
+      // Byte 8
+      idx++;
+      if ((data[idx] & 0x01) != 0) z += "ID65-UnrecoverHwAcOCP, ";
+      if ((data[idx] & 0x02) != 0) z += "ID66-UnrecoverBusOVP, ";
+      if ((data[idx] & 0x04) != 0) z += "ID67-UnrecoverIacRmsUnbalance, ";
+      if ((data[idx] & 0x08) != 0) z += "ID68-UnrecoverIpvUnbalance, ";
+      if ((data[idx] & 0x10) != 0) z += "ID69-UnrecoverVbusUnbalance, ";
+      if ((data[idx] & 0x20) != 0) z += "ID70-UnrecoverOCPInstant, ";
+      if ((data[idx] & 0x40) != 0) z += "ID71-UnrecoverPvConfigSetWrong, ";
+      // Byte 9
+      idx++;
+      if ((data[idx] & 0x02) != 0) z += "ID74-UnrecoverIPVInstant, ";
+      if ((data[idx] & 0x04) != 0) z += "ID75-UnrecoverWRITEEEPROM, ";
+      if ((data[idx] & 0x08) != 0) z += "ID76-UnrecoverREADEEPROM, ";
+      if ((data[idx] & 0x10) != 0) z += "ID77-UnrecoverRelayFail, ";
+      if (z.length() > 2) {
+        z.pop_back();
+        z.pop_back();
+      }
+      if (z.empty()) z = "OK";
+      return {z};
+
+  # --- Battery Type (0x10B0) ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Battery Type"
+    id: battery_type
+    register_type: read
+    address: 0x10B0
+    skip_updates: 360
+    lambda: |-
+      char d = data[item->offset + 1];
+      switch (d) {
+        case 0: return std::string("DARFON");
+        case 1: return std::string("PYLON");
+        case 2: return std::string("SOLTARO");
+        case 3: return std::string("ALPHA.ESS");
+        case 4: return std::string("GENERAL");
+        case 100: return std::string("DEFAULT");
+        default: return std::string("Unknown");
+      }
+
+# ===========================================================================
+# SENSORS
+# ===========================================================================
+sensor:
+  # --- Grid ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Grid Voltage"
+    id: grid_voltage
+    address: 0x0206
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 0.1
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Grid Current"
+    id: grid_current
+    address: 0x0207
+    register_type: holding
+    value_type: S_WORD
+    filters:
+      - multiply: 0.01
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Grid Frequency"
+    id: grid_frequency
+    address: 0x020C
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 0.01
+    unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
+    accuracy_decimals: 2
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Grid Power"
+    id: grid_power
+    address: 0x0212
+    register_type: holding
+    value_type: S_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # --- Battery ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Battery Power"
+    id: battery_power
+    address: 0x020D
+    register_type: holding
+    value_type: S_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Battery Voltage"
+    id: battery_voltage
+    address: 0x020E
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 0.01
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 2
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Battery Current"
+    id: battery_current
+    address: 0x020F
+    register_type: holding
+    value_type: S_WORD
+    filters:
+      - multiply: 0.01
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Battery SOC"
+    id: battery_soc
+    address: 0x0210
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - lambda: |-
+          if (x > 0 && x <= 100) return x;
+          else return {};
+    unit_of_measurement: "%"
+    device_class: battery
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Battery Temperature"
+    id: battery_temp
+    address: 0x0211
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Battery Cycles"
+    id: battery_cycles
+    address: 0x022C
+    register_type: holding
+    value_type: U_WORD
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  # --- Load / Generation ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Load Power"
+    id: load_power
+    address: 0x0213
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} System IO Power"
+    id: system_io_power
+    address: 0x0214
+    register_type: holding
+    value_type: S_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} PV Generation Power"
+    id: pv_power
+    address: 0x0215
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # --- EPS (Emergency Power Supply) ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} EPS Voltage"
+    id: eps_voltage
+    address: 0x0216
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 0.1
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} EPS Power"
+    id: eps_power
+    address: 0x0217
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # --- Daily Energy Totals ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} PV Generation Today"
+    id: pv_generation_today
+    address: 0x0218
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Energy Export Today"
+    id: energy_export_today
+    address: 0x0219
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Energy Import Today"
+    id: energy_import_today
+    address: 0x021A
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Consumption Today"
+    id: consumption_today
+    address: 0x021B
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Battery Charge Today"
+    id: battery_charge_today
+    address: 0x0224
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Battery Discharge Today"
+    id: battery_discharge_today
+    address: 0x0225
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    unit_of_measurement: "Wh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  # --- Lifetime Totals ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Total Generation"
+    id: total_generation
+    address: 0x021C
+    register_type: holding
+    value_type: U_DWORD
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Total Export"
+    id: total_export
+    address: 0x021E
+    register_type: holding
+    value_type: U_DWORD
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Total Import"
+    id: total_import
+    address: 0x0220
+    register_type: holding
+    value_type: U_DWORD
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Total Consumption"
+    id: total_consumption
+    address: 0x0222
+    register_type: holding
+    value_type: U_DWORD
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  # --- Temperatures ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Inverter Temperature"
+    id: inverter_temp
+    address: 0x0238
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Heatsink Temperature"
+    id: heatsink_temp
+    address: 0x0239
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # --- Countdown Timer ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp
+    name: "${device_verbose_name} Countdown Timer"
+    id: countdown_timer
+    address: 0x022A
+    register_type: holding
+    value_type: U_WORD
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # --- Snelle interne sensors voor battery_save mode ---
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp_rapid
+    name: "${device_verbose_name} PV Power Rapid"
+    id: pv_power_rapid
+    internal: true
+    address: 0x0215
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    accuracy_decimals: 0
+
+  - platform: modbus_controller
+    modbus_controller_id: me3000sp_rapid
+    name: "${device_verbose_name} Load Power Rapid"
+    id: load_power_rapid
+    internal: true
+    address: 0x0213
+    register_type: holding
+    value_type: U_WORD
+    filters:
+      - multiply: 10
+    accuracy_decimals: 0
+
+# ===========================================================================
+# SELECT — Werkingsmodus (verschijnt als dropdown in HA)
+# ===========================================================================
+select:
+  - platform: template
+    name: "${device_verbose_name} Mode"
+    id: inverter_mode
+    options:
+      - "auto"
+      - "charge"
+      - "discharge"
+      - "standby"
+    initial_option: "auto"
+    optimistic: true
+    restore_value: true
+    on_value:
+      - lambda: |-
+          auto *controller = id(me3000sp);
+
+          if (id(inverter_mode).state == "auto") {
+            ESP_LOGI("sofar", "Mode → AUTO");
+            std::vector<uint8_t> payload = {0x01, 0x42, 0x01, 0x03, 0x00, 0x00};
+            auto cmd = modbus_controller::ModbusCommandItem::create_custom_command(controller, payload);
+            controller->queue_command(cmd);
+
+          } else if (id(inverter_mode).state == "standby") {
+            ESP_LOGI("sofar", "Mode → STANDBY");
+            std::vector<uint8_t> payload = {0x01, 0x42, 0x01, 0x00, 0x55, 0x55};
+            auto cmd = modbus_controller::ModbusCommandItem::create_custom_command(controller, payload);
+            controller->queue_command(cmd);
+
+          } else if (id(inverter_mode).state == "charge") {
+            int rate = std::min(3000, (int) id(charge_rate).state);
+            ESP_LOGI("sofar", "Mode → CHARGE @ %d W", rate);
+            std::vector<uint8_t> payload = {0x01, 0x42, 0x01, 0x02, (uint8_t)(rate >> 8), (uint8_t)(rate & 0xFF)};
+            auto cmd = modbus_controller::ModbusCommandItem::create_custom_command(controller, payload);
+            controller->queue_command(cmd);
+
+          } else if (id(inverter_mode).state == "discharge") {
+            int rate = std::min(3000, (int) id(discharge_rate).state);
+            ESP_LOGI("sofar", "Mode → DISCHARGE @ %d W", rate);
+            std::vector<uint8_t> payload = {0x01, 0x42, 0x01, 0x01, (uint8_t)(rate >> 8), (uint8_t)(rate & 0xFF)};
+            auto cmd = modbus_controller::ModbusCommandItem::create_custom_command(controller, payload);
+            controller->queue_command(cmd);
+
+          }
+
+# ===========================================================================
+# NUMBER — Laad/ontlaad-vermogen (verschijnt als slider in HA)
+# ===========================================================================
+number:
+  - platform: template
+    name: "${device_verbose_name} Charge Rate"
+    id: charge_rate
+    icon: "mdi:battery-plus"
+    unit_of_measurement: "W"
+    device_class: power
+    optimistic: true
+    min_value: 0
+    max_value: 3000
+    restore_value: true
+    initial_value: 1500
+    step: 50
+    on_value:
+      - lambda: |-
+          if (id(inverter_mode).state == "charge") {
+            int rate = std::min(3000, (int) x);
+            ESP_LOGI("sofar", "Charge rate → %d W", rate);
+            auto *controller = id(me3000sp);
+            std::vector<uint8_t> payload = {0x01, 0x42, 0x01, 0x02, (uint8_t)(rate >> 8), (uint8_t)(rate & 0xFF)};
+            auto cmd = modbus_controller::ModbusCommandItem::create_custom_command(controller, payload);
+            controller->queue_command(cmd);
+          }
+
+  - platform: template
+    name: "${device_verbose_name} Discharge Rate"
+    id: discharge_rate
+    icon: "mdi:battery-minus"
+    unit_of_measurement: "W"
+    device_class: power
+    optimistic: true
+    min_value: 0
+    max_value: 3000
+    restore_value: true
+    initial_value: 1500
+    step: 50
+    on_value:
+      - lambda: |-
+          if (id(inverter_mode).state == "discharge") {
+            int rate = std::min(3000, (int) x);
+            ESP_LOGI("sofar", "Discharge rate → %d W", rate);
+            auto *controller = id(me3000sp);
+            std::vector<uint8_t> payload = {0x01, 0x42, 0x01, 0x01, (uint8_t)(rate >> 8), (uint8_t)(rate & 0xFF)};
+            auto cmd = modbus_controller::ModbusCommandItem::create_custom_command(controller, payload);
+            controller->queue_command(cmd);
+          }
+
+# ===========================================================================
+# SWITCH — Restart
+# ===========================================================================
+switch:
+  - platform: restart
+    name: "${device_verbose_name} Restart"
