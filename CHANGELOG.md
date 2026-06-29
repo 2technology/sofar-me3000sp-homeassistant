@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.0 — 2026-06-29
+
+### Toegevoegd
+- **HACS custom integration** (`custom_components/sofar_me3000sp/`)
+  - Config flow met UI-wizard voor entity-selectie
+  - Automatische template sensors (export, import, net, surplus, deficit, house load, PV, flow direction, visual summary)
+  - Automatische binary sensors (charging, discharging, exporting, importing, balanced, alarm)
+  - Automatische number helpers (drempels voor tuning)
+  - Interne automation logica (charge/discharge/auto/standby/force-charge)
+  - Nederlands + Engels translations
+  - `hacs.json` voor HACS-discovery
+- Force-charge bij kritisch lage SOC (< 20%)
+
 ## v1.0.0 — 2026-06-29
 
 ### Toegevoegd
@@ -10,7 +23,6 @@
 - Installatiegids voor beginners
 - Troubleshooting-gids
 - Architectuurdocumentatie
-- Force-charge bij kritisch lage SOC (< 20%)
 - .gitignore
 - secrets.yaml.example
 

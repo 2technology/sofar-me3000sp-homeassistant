@@ -1,0 +1,79 @@
+"""Number platform for SOFAR ME3000SP Controller — tunable thresholds."""
+
+from __future__ import annotations
+
+from homeassistant.components.number import NumberEntity, NumberMode
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+from .const import (
+    DEFAULT_BALANCE_W,
+    DEFAULT_CHARGE_MARGIN_W,
+    DEFAULT_DISCHARGE_MARGIN_W,
+    DEFAULT_EXPORT_START_W,
+    DEFAULT_IMPORT_START_W,
+    DEFAULT_PV_MIN_W,
+    DEFAULT_SOC_MAX_CHARGE,
+    DEFAULT_SOC_MIN_DISCHARGE,
+    DOMAIN,
+    NUMBER_BALANCE_W,
+    NUMBER_CHARGE_MARGIN_W,
+    NUMBER_DISCHARGE_MARGIN_W,
+    NUMBER_EXPORT_START_W,
+    NUMBER_IMPORT_START_W,
+    NUMBER_PV_MIN_W,
+    NUMBER_SOC_MAX_CHARGE,
+    NUMBER_SOC_MIN_DISCHARGE,
+)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up SOFAR ME3000SP number helpers."""
+    entities = [
+        SofarNumberHelper(entry, NUMBER_EXPORT_START_W, "SOFAR Export Start W", "mdi:transmission-tower-export", 0, 2000, 50, DEFAULT_EXPORT_START_W),
+        SofarNumberHelper(entry, NUMBER_IMPORT_START_W, "SOFAR Import Start W", "mdi:transmission-tower-import", 0, 2000, 50, DEFAULT_IMPORT_START_W),
+        SofarNumberHelper(entry, NUMBER_PV_MIN_W, "SOFAR PV Min W", "mdi:solar-power", 0, 5000, 50, DEFAULT_PV_MIN_W),
+        SofarNumberHelper(entry, NUMBER_BALANCE_W, "SOFAR Balance W", "mdi:scale-balance", 0, 1000, 25, DEFAULT_BALANCE_W),
+        SofarNumberHelper(entry, NUMBER_CHARGE_MARGIN_W, "SOFAR Charge Margin W", "mdi:battery-plus", 0, 1000, 25, DEFAULT_CHARGE_MARGIN_W),
+        SofarNumberHelper(entry, NUMBER_DISCHARGE_MARGIN_W, "SOFAR Discharge Margin W", "mdi:battery-minus", 0, 1000, 25, DEFAULT_DISCHARGE_MARGIN_W),
+        SofarNumberHelper(entry, NUMBER_SOC_MAX_CHARGE, "SOFAR SOC Max Charge %", "mdi:battery-high", 0, 100, 1, DEFAULT_SOC_MAX_CHARGE),
+        SofarNumberHelper(entry, NUMBER_SOC_MIN_DISCHARGE, "SOFAR SOC Min Discharge %", "mdi:battery-alert", 0, 100, 1, DEFAULT_SOC_MIN_DISCHARGE),
+    ]
+    async_add_entities(entities)
+
+
+class SofarNumberHelper(NumberEntity):
+    """A number helper for tuning automation thresholds."""
+
+    _attr_mode = NumberMode.BOX
+    _attr_should_poll = False
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        unique_id: str,
+        name: str,
+        icon: str,
+        native_min_value: float,
+        native_max_value: float,
+        native_step: float,
+        initial_value: float,
+    ) -> None:
+        """Initialize."""
+        self._attr_unique_id = f"{DOMAIN}_{unique_id}"
+        self._attr_name = name
+        self._attr_icon = icon
+        self._attr_native_min_value = native_min_value
+        self._attr_native_max_value = native_max_value
+        self._attr_native_step = native_step
+        self._attr_native_value = initial_value
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        self._attr_native_value = value
+        self.async_write_ha_state()

@@ -1,0 +1,68 @@
+"""Constants for the SOFAR ME3000SP Controller integration."""
+
+DOMAIN = "sofar_me3000sp"
+
+# Config entry keys
+CONF_EXPORT_ENTITY = "export_entity"
+CONF_IMPORT_ENTITY = "import_entity"
+CONF_PV_ENTITY = "pv_entity"
+CONF_SOFAR_MODE_ENTITY = "sofar_mode_entity"
+CONF_SOFAR_CHARGE_RATE_ENTITY = "sofar_charge_rate_entity"
+CONF_SOFAR_DISCHARGE_RATE_ENTITY = "sofar_discharge_rate_entity"
+CONF_SOFAR_SOC_ENTITY = "sofar_soc_entity"
+CONF_SOFAR_FAULT_ENTITY = "sofar_fault_entity"
+
+# Default thresholds
+DEFAULT_EXPORT_START_W = 400
+DEFAULT_IMPORT_START_W = 300
+DEFAULT_PV_MIN_W = 700
+DEFAULT_BALANCE_W = 150
+DEFAULT_CHARGE_MARGIN_W = 150
+DEFAULT_DISCHARGE_MARGIN_W = 250
+DEFAULT_SOC_MAX_CHARGE = 95
+DEFAULT_SOC_MIN_DISCHARGE = 35
+DEFAULT_SOC_FORCE_CHARGE = 20
+DEFAULT_SOC_FORCE_CHARGE_TARGET = 50
+DEFAULT_FORCE_CHARGE_RATE = 1500
+DEFAULT_MAX_RATE = 3000
+
+# Timing
+CHARGE_HOLD_SECONDS = 300  # 5 min
+DISCHARGE_HOLD_SECONDS = 300
+BALANCE_HOLD_SECONDS = 600  # 10 min
+FORCE_CHARGE_TIMEOUT = 14400  # 4 uur
+
+# Automation modes
+MODE_AUTO = "auto"
+MODE_CHARGE = "charge"
+MODE_DISCHARGE = "discharge"
+MODE_STANDBY = "standby"
+
+# Sensor names
+SENSOR_GRID_EXPORT_POWER = "sofar_grid_export_power"
+SENSOR_GRID_IMPORT_POWER = "sofar_grid_import_power"
+SENSOR_NET_GRID_POWER = "sofar_net_grid_power"
+SENSOR_GRID_SURPLUS_POWER = "sofar_grid_surplus_power"
+SENSOR_GRID_DEFICIT_POWER = "sofar_grid_deficit_power"
+SENSOR_HOUSE_LOAD_POWER = "sofar_house_load_power"
+SENSOR_SMA_PV_POWER = "sofar_sma_pv_power"
+SENSOR_FLOW_DIRECTION = "sofar_flow_direction"
+SENSOR_VISUAL_SUMMARY = "sofar_visual_summary"
+
+# Binary sensor names
+BINARY_CHARGING_ACTIVE = "sofar_charging_active"
+BINARY_DISCHARGING_ACTIVE = "sofar_discharging_active"
+BINARY_EXPORTING = "sofar_exporting"
+BINARY_IMPORTING = "sofar_importing"
+BINARY_BALANCED_GRID = "sofar_balanced_grid"
+BINARY_ALARM_ACTIVE = "sofar_alarm_active"
+
+# Number helper names
+NUMBER_EXPORT_START_W = "sofar_export_start_w"
+NUMBER_IMPORT_START_W = "sofar_import_start_w"
+NUMBER_PV_MIN_W = "sofar_pv_min_w"
+NUMBER_BALANCE_W = "sofar_balance_w"
+NUMBER_CHARGE_MARGIN_W = "sofar_charge_margin_w"
+NUMBER_DISCHARGE_MARGIN_W = "sofar_discharge_margin_w"
+NUMBER_SOC_MAX_CHARGE = "sofar_soc_max_charge"
+NUMBER_SOC_MIN_DISCHARGE = "sofar_soc_min_discharge"

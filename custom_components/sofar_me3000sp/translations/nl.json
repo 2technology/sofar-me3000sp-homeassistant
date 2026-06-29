@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SOFAR ME3000SP Controller",
+        "description": "Selecteer de entities voor je SOFAR ME3000SP installatie.\n\n**Slimme meter:**\n- Export entity (kW)\n- Import entity (kW)\n\n**PV omvormer:**\n- PV power entity (W)\n\n**ESPHome SOFAR device:**\n- Mode select entity\n- Charge rate number entity\n- Discharge rate number entity\n- Battery SOC sensor entity\n- Fault messages sensor entity",
+        "data": {
+          "export_entity": "Export entity (kW)",
+          "import_entity": "Import entity (kW)",
+          "pv_entity": "PV power entity (W)",
+          "sofar_mode_entity": "SOFAR mode select",
+          "sofar_charge_rate_entity": "SOFAR charge rate",
+          "sofar_discharge_rate_entity": "SOFAR discharge rate",
+          "sofar_soc_entity": "SOFAR battery SOC",
+          "sofar_fault_entity": "SOFAR fault messages"
+        }
+      }
+    }
+  }
+}

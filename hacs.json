@@ -1,0 +1,8 @@
+{
+  "name": "SOFAR ME3000SP Controller",
+  "content_in_root": false,
+  "zip_release": false,
+  "filename": "custom_components/sofar_me3000sp",
+  "homeassistant": "2024.1.0",
+  "render_readme": true
+}

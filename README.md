@@ -2,6 +2,38 @@
 
 Gebruiksklare Home Assistant + ESPHome toolkit voor de SOFAR ME3000SP met ESP32 + MAX3485 RS485-sturing.
 
+## ⚡ HACS Installatie (aanbevolen)
+
+De makkelijkste manier:
+
+1. Zorg dat [HACS](https://hacs.xyz/) geïnstalleerd is
+2. Ga naar **HACS → Integrations → ⋮ → Custom repositories**
+3. Voeg toe: `https://github.com/Mad_Science_Lab/sofar-me3000sp-homeassistant` (type: Integration)
+4. Klik op **SOFAR ME3000SP Controller** → **Download**
+5. Herstart Home Assistant
+6. Ga naar **Settings → Devices & Services → Add Integration** → zoek "SOFAR ME3000SP"
+7. Volg de wizard: selecteer je slimme meter, PV en ESPHome entities
+8. Klaar — de integratie maakt automatisch alle sensors, helpers en automations aan
+
+## 📦 Handmatige installatie (zonder HACS)
+
+Kopieer de map `custom_components/sofar_me3000sp/` naar `/config/custom_components/sofar_me3000sp/` en herstart Home Assistant.
+
+## 📂 Alternatief: YAML package (zonder custom integration)
+
+Als je liever geen custom integration gebruikt, is er ook een drop-in YAML package:
+
+```text
+home-assistant/packages/sofar_me3000sp.yaml
+```
+
+Kopieer naar `/config/packages/sofar_me3000sp.yaml` en voeg aan `configuration.yaml` toe:
+
+```yaml
+homeassistant:
+  packages: !include_dir_named packages
+```
+
 ## Voor wie is dit?
 
 Voor gebruikers die hun SOFAR ME3000SP via Home Assistant willen aansturen zonder te vertrouwen op de interne Sofar CT/powerflow-metingen.
@@ -66,7 +98,8 @@ home-assistant/dashboards/sofar_me3000sp_wall_panel.yaml
 
 | Bestand | Doel |
 |---|---|
-| `home-assistant/packages/sofar_me3000sp.yaml` | Complete drop-in package: sensors, helpers, automations |
+| `custom_components/sofar_me3000sp/` | **HACS custom integration** — UI-wizard, sensors, automations |
+| `home-assistant/packages/sofar_me3000sp.yaml` | Alternatief: drop-in YAML package (zonder custom integration) |
 | `home-assistant/dashboards/sofar_me3000sp_wall_panel.yaml` | Mooie wall-panel dashboardkaart |
 | `home-assistant/dashboards/sofar_me3000sp_mushroom_basic.yaml` | Eenvoudigere Mushroom dashboardkaart |
 | `esphome/sofar-me3000sp-esp32.yaml` | ESP32/MAX3485 firmware voor SOFAR control |

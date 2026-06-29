@@ -1,0 +1,120 @@
+"""Binary sensor platform for SOFAR ME3000SP Controller."""
+
+from __future__ import annotations
+
+from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change_event
+
+from .const import (
+    BINARY_ALARM_ACTIVE,
+    BINARY_BALANCED_GRID,
+    BINARY_CHARGING_ACTIVE,
+    BINARY_DISCHARGING_ACTIVE,
+    BINARY_EXPORTING,
+    BINARY_IMPORTING,
+    CONF_EXPORT_ENTITY,
+    CONF_IMPORT_ENTITY,
+    CONF_SOFAR_CHARGE_RATE_ENTITY,
+    CONF_SOFAR_DISCHARGE_RATE_ENTITY,
+    CONF_SOFAR_FAULT_ENTITY,
+    CONF_SOFAR_MODE_ENTITY,
+    DOMAIN,
+    NUMBER_BALANCE_W,
+)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up SOFAR ME3000SP binary sensors."""
+    entities = [
+        SofarBinarySensor(hass, entry, BINARY_CHARGING_ACTIVE, "SOFAR Charging Active", "mdi:battery-arrow-up", "charging"),
+        SofarBinarySensor(hass, entry, BINARY_DISCHARGING_ACTIVE, "SOFAR Discharging Active", "mdi:battery-arrow-down", "discharging"),
+        SofarBinarySensor(hass, entry, BINARY_EXPORTING, "SOFAR Exporting", "mdi:transmission-tower-export", "exporting"),
+        SofarBinarySensor(hass, entry, BINARY_IMPORTING, "SOFAR Importing", "mdi:transmission-tower-import", "importing"),
+        SofarBinarySensor(hass, entry, BINARY_BALANCED_GRID, "SOFAR Balanced Grid", "mdi:scale-balance", "balanced"),
+        SofarBinarySensor(hass, entry, BINARY_ALARM_ACTIVE, "SOFAR Alarm Active", "mdi:alert-circle", "alarm"),
+    ]
+    async_add_entities(entities)
+
+
+class SofarBinarySensor(BinarySensorEntity):
+    """Binary sensor for SOFAR ME3000SP status."""
+
+    _attr_should_poll = False
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, unique_id: str, name: str, icon: str, sensor_type: str) -> None:
+        """Initialize."""
+        self._attr_unique_id = f"{DOMAIN}_{unique_id}"
+        self._attr_name = name
+        self._attr_icon = icon
+        self._sensor_type = sensor_type
+        self._entry = entry
+        self._hass = hass
+        self._attr_is_on = False
+        self._attr_available = False
+
+    async def async_added_to_hass(self) -> None:
+        """Register listener."""
+        data = self._entry.data
+        tracked = [
+            data[CONF_EXPORT_ENTITY],
+            data[CONF_IMPORT_ENTITY],
+            data[CONF_SOFAR_MODE_ENTITY],
+            data[CONF_SOFAR_FAULT_ENTITY],
+            data[CONF_SOFAR_CHARGE_RATE_ENTITY],
+            data[CONF_SOFAR_DISCHARGE_RATE_ENTITY],
+        ]
+        self.async_on_remove(
+            async_track_state_change_event(self._hass, tracked, self._on_state_change)
+        )
+        self._update_state()
+
+    @callback
+    def _on_state_change(self, event) -> None:
+        self._update_state()
+        self.async_write_ha_state()
+
+    def _update_state(self) -> None:
+        data = self._entry.data
+        mode = self._get_str(data[CONF_SOFAR_MODE_ENTITY])
+        fault = self._get_str(data[CONF_SOFAR_FAULT_ENTITY])
+        export_w = self._get_float(data[CONF_EXPORT_ENTITY]) * 1000
+        import_w = self._get_float(data[CONF_IMPORT_ENTITY]) * 1000
+        charge_rate = self._get_float(data[CONF_SOFAR_CHARGE_RATE_ENTITY])
+        discharge_rate = self._get_float(data[CONF_SOFAR_DISCHARGE_RATE_ENTITY])
+
+        self._attr_available = True
+
+        if self._sensor_type == "charging":
+            self._attr_is_on = mode == "charge" and charge_rate > 0
+        elif self._sensor_type == "discharging":
+            self._attr_is_on = mode == "discharge" and discharge_rate > 0
+        elif self._sensor_type == "exporting":
+            self._attr_is_on = export_w > import_w
+        elif self._sensor_type == "importing":
+            self._attr_is_on = import_w > export_w
+        elif self._sensor_type == "balanced":
+            self._attr_is_on = abs(export_w - import_w) <= 150
+        elif self._sensor_type == "alarm":
+            self._attr_is_on = fault not in ("OK", "unavailable", "unknown", "")
+
+    def _get_float(self, entity_id: str) -> float:
+        state = self._hass.states.get(entity_id)
+        if state is None or state.state in ("unavailable", "unknown"):
+            return 0.0
+        try:
+            return float(state.state)
+        except (ValueError, TypeError):
+            return 0.0
+
+    def _get_str(self, entity_id: str) -> str:
+        state = self._hass.states.get(entity_id)
+        if state is None:
+            return ""
+        return str(state.state)
