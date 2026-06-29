@@ -22,8 +22,10 @@ from .const import (
     CONF_SOFAR_FAULT_ENTITY,
     CONF_SOFAR_MODE_ENTITY,
     DOMAIN,
-    NUMBER_BALANCE_W,
 )
+from .sensor import _get_float, _get_str
+
+_INVALID_STATES = ("unavailable", "unknown", "none", "")
 
 
 async def async_setup_entry(
@@ -49,7 +51,6 @@ class SofarBinarySensor(BinarySensorEntity):
     _attr_should_poll = False
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, unique_id: str, name: str, icon: str, sensor_type: str) -> None:
-        """Initialize."""
         self._attr_unique_id = f"{DOMAIN}_{unique_id}"
         self._attr_name = name
         self._attr_icon = icon
@@ -60,7 +61,6 @@ class SofarBinarySensor(BinarySensorEntity):
         self._attr_available = False
 
     async def async_added_to_hass(self) -> None:
-        """Register listener."""
         data = self._entry.data
         tracked = [
             data[CONF_EXPORT_ENTITY],
@@ -70,9 +70,7 @@ class SofarBinarySensor(BinarySensorEntity):
             data[CONF_SOFAR_CHARGE_RATE_ENTITY],
             data[CONF_SOFAR_DISCHARGE_RATE_ENTITY],
         ]
-        self.async_on_remove(
-            async_track_state_change_event(self._hass, tracked, self._on_state_change)
-        )
+        self.async_on_remove(async_track_state_change_event(self._hass, tracked, self._on_state_change))
         self._update_state()
 
     @callback
@@ -82,12 +80,12 @@ class SofarBinarySensor(BinarySensorEntity):
 
     def _update_state(self) -> None:
         data = self._entry.data
-        mode = self._get_str(data[CONF_SOFAR_MODE_ENTITY])
-        fault = self._get_str(data[CONF_SOFAR_FAULT_ENTITY])
-        export_w = self._get_float(data[CONF_EXPORT_ENTITY]) * 1000
-        import_w = self._get_float(data[CONF_IMPORT_ENTITY]) * 1000
-        charge_rate = self._get_float(data[CONF_SOFAR_CHARGE_RATE_ENTITY])
-        discharge_rate = self._get_float(data[CONF_SOFAR_DISCHARGE_RATE_ENTITY])
+        mode = _get_str(self._hass, data[CONF_SOFAR_MODE_ENTITY])
+        fault = _get_str(self._hass, data[CONF_SOFAR_FAULT_ENTITY])
+        export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
+        import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
+        charge_rate = _get_float(self._hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY])
+        discharge_rate = _get_float(self._hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY])
 
         self._attr_available = True
 
@@ -103,18 +101,3 @@ class SofarBinarySensor(BinarySensorEntity):
             self._attr_is_on = abs(export_w - import_w) <= 150
         elif self._sensor_type == "alarm":
             self._attr_is_on = fault not in ("OK", "unavailable", "unknown", "")
-
-    def _get_float(self, entity_id: str) -> float:
-        state = self._hass.states.get(entity_id)
-        if state is None or state.state in ("unavailable", "unknown"):
-            return 0.0
-        try:
-            return float(state.state)
-        except (ValueError, TypeError):
-            return 0.0
-
-    def _get_str(self, entity_id: str) -> str:
-        state = self._hass.states.get(entity_id)
-        if state is None:
-            return ""
-        return str(state.state)

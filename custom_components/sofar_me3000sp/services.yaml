@@ -1,0 +1,50 @@
+set_mode:
+  name: Set Inverter Mode
+  description: "Stel de SOFAR ME3000SP inverter mode handmatig in"
+  fields:
+    mode:
+      name: Mode
+      description: "De gewenste mode: auto, charge, discharge of standby"
+      required: true
+      example: "auto"
+      selector:
+        select:
+          options:
+            - "auto"
+            - "charge"
+            - "discharge"
+            - "standby"
+
+set_charge_rate:
+  name: Set Charge Rate
+  description: "Stel het laadvermogen in (0-3000W)"
+  fields:
+    rate:
+      name: Charge Rate
+      description: "Laadvermogen in Watt"
+      required: true
+      example: 1500
+      selector:
+        number:
+          min: 0
+          max: 3000
+          step: 50
+          unit_of_measurement: "W"
+          mode: slider
+
+set_discharge_rate:
+  name: Set Discharge Rate
+  description: "Stel het ontlaadvermogen in (0-3000W)"
+  fields:
+    rate:
+      name: Discharge Rate
+      description: "Ontlaadvermogen in Watt"
+      required: true
+      example: 1500
+      selector:
+        number:
+          min: 0
+          max: 3000
+          step: 50
+          unit_of_measurement: "W"
+          mode: slider

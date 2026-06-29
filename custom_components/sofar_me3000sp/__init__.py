@@ -7,15 +7,12 @@ using external smart meter + PV data as the truth source.
 
 from __future__ import annotations
 
-import asyncio
 import logging
+import time
 from datetime import timedelta
 
-import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    CONF_NAME,
     EVENT_HOMEASSISTANT_STARTED,
     STATE_OK,
     STATE_UNAVAILABLE,
@@ -27,12 +24,6 @@ from homeassistant.helpers.event import async_track_state_change_event, async_tr
 
 from .const import (
     BALANCE_HOLD_SECONDS,
-    BINARY_ALARM_ACTIVE,
-    BINARY_BALANCED_GRID,
-    BINARY_CHARGING_ACTIVE,
-    BINARY_DISCHARGING_ACTIVE,
-    BINARY_EXPORTING,
-    BINARY_IMPORTING,
     CHARGE_HOLD_SECONDS,
     CONF_EXPORT_ENTITY,
     CONF_IMPORT_ENTITY,
@@ -69,15 +60,6 @@ from .const import (
     NUMBER_PV_MIN_W,
     NUMBER_SOC_MAX_CHARGE,
     NUMBER_SOC_MIN_DISCHARGE,
-    SENSOR_FLOW_DIRECTION,
-    SENSOR_GRID_DEFICIT_POWER,
-    SENSOR_GRID_EXPORT_POWER,
-    SENSOR_GRID_IMPORT_POWER,
-    SENSOR_GRID_SURPLUS_POWER,
-    SENSOR_HOUSE_LOAD_POWER,
-    SENSOR_NET_GRID_POWER,
-    SENSOR_SMA_PV_POWER,
-    SENSOR_VISUAL_SUMMARY,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -100,6 +82,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Register services
+    await _async_register_services(hass, entry)
+
     # Start automation logic after HA is fully started
     async def _start_automation(_event=None):
         _LOGGER.info("SOFAR ME3000SP automation started")
@@ -115,6 +100,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    # Deregister services
+    for service in ("set_mode", "set_charge_rate", "set_discharge_rate"):
+        if hass.services.has_service(DOMAIN, service):
+            hass.services.async_remove(DOMAIN, service)
+
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
@@ -162,23 +152,26 @@ def _setup_automation(hass: HomeAssistant, entry: ConfigEntry):
     store = hass.data[DOMAIN][entry.entry_id]
 
     @callback
-    def _on_state_change(event):
+    async def _on_state_change(event):
         """Handle state changes and run automation logic."""
-        _run_automation(hass, entry, store)
+        await _run_automation(hass, entry, store)
 
     # Listen to relevant state changes
     async_track_state_change_event(hass, tracked, _on_state_change)
 
     # Also run periodically as a safety net
-    async_track_time_interval(hass, lambda now: _run_automation(hass, entry, store), timedelta(seconds=60))
+    async def _periodic_check(now):
+        await _run_automation(hass, entry, store)
+
+    async_track_time_interval(hass, _periodic_check, timedelta(seconds=60))
 
     _LOGGER.info("SOFAR ME3000SP automation listeners registered for: %s", tracked)
 
 
-def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
+async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
     """Run the automation logic: decide mode and set charge/discharge rates."""
     data = entry.data
-    now = hass.loop.time() if hass.loop else 0
+    now = time.monotonic()
 
     export_w = _get_entity_state(hass, data[CONF_EXPORT_ENTITY]) * 1000  # kW → W
     import_w = _get_entity_state(hass, data[CONF_IMPORT_ENTITY]) * 1000
@@ -203,7 +196,7 @@ def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
 
     # --- ALARM: force standby ---
     if fault not in (STATE_OK, STATE_UNAVAILABLE, STATE_UNKNOWN, ""):
-        _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_STANDBY)
+        await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_STANDBY)
         return
 
     # --- FORCE CHARGE: critical low SOC ---
@@ -211,16 +204,16 @@ def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
         if not store.get("force_charge_active"):
             store["force_charge_active"] = True
             store["force_charge_start"] = now
-            _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
-            _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], DEFAULT_FORCE_CHARGE_RATE)
+            await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
+            await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], DEFAULT_FORCE_CHARGE_RATE)
             _LOGGER.info("Force charge started: SOC=%.0f%%", soc)
         elif now - store.get("force_charge_start", 0) > FORCE_CHARGE_TIMEOUT:
             store["force_charge_active"] = False
-            _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+            await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
             _LOGGER.warning("Force charge timeout after 4h")
         elif soc >= DEFAULT_SOC_FORCE_CHARGE_TARGET:
             store["force_charge_active"] = False
-            _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+            await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
             _LOGGER.info("Force charge complete: SOC=%.0f%%", soc)
         return
 
@@ -231,8 +224,8 @@ def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
         elif now - store["charge_hold_start"] >= CHARGE_HOLD_SECONDS:
             charge_w = min(max(0, int(surplus_w - charge_margin)), DEFAULT_MAX_RATE)
             if charge_w > 0:
-                _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
-                _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], charge_w)
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
+                await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], charge_w)
                 store["discharge_hold_start"] = None
                 store["balance_hold_start"] = None
         return
@@ -246,8 +239,8 @@ def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
         elif now - store["discharge_hold_start"] >= DISCHARGE_HOLD_SECONDS:
             discharge_w = min(max(0, int(deficit_w + discharge_margin)), DEFAULT_MAX_RATE)
             if discharge_w > 0:
-                _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_DISCHARGE)
-                _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_DISCHARGE)
+                await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
                 store["charge_hold_start"] = None
                 store["balance_hold_start"] = None
         return
@@ -260,7 +253,7 @@ def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
             store["balance_hold_start"] = now
         elif now - store["balance_hold_start"] >= BALANCE_HOLD_SECONDS:
             if current_mode not in (MODE_AUTO, MODE_STANDBY):
-                _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
             store["charge_hold_start"] = None
             store["discharge_hold_start"] = None
         return
@@ -268,25 +261,56 @@ def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
         store["balance_hold_start"] = None
 
 
-def _set_mode(hass: HomeAssistant, entity_id: str, mode: str):
+async def _set_mode(hass: HomeAssistant, entity_id: str, mode: str):
     """Set the inverter mode via select entity."""
-    hass.async_create_task(
-        hass.services.async_call(
-            "select",
-            "select_option",
-            {"entity_id": entity_id, "option": mode},
-            blocking=False,
-        )
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id, "option": mode},
+        blocking=False,
     )
 
 
-def _set_number(hass: HomeAssistant, entity_id: str, value: int):
+async def _set_number(hass: HomeAssistant, entity_id: str, value: int):
     """Set a number entity value."""
-    hass.async_create_task(
-        hass.services.async_call(
-            "number",
-            "set_value",
-            {"entity_id": entity_id, "value": float(value)},
-            blocking=False,
-        )
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": entity_id, "value": float(value)},
+        blocking=False,
     )
+
+
+async def _async_register_services(hass: HomeAssistant, entry: ConfigEntry):
+    """Register custom services for manual mode/rate control."""
+
+    @callback
+    async def _handle_set_mode(call):
+        """Handle set_mode service call."""
+        mode = call.data.get("mode", MODE_AUTO)
+        if mode not in (MODE_AUTO, MODE_CHARGE, MODE_DISCHARGE, MODE_STANDBY):
+            _LOGGER.warning("Invalid mode: %s", mode)
+            return
+        await _set_mode(hass, entry.data[CONF_SOFAR_MODE_ENTITY], mode)
+        _LOGGER.info("Service set_mode: %s", mode)
+
+    @callback
+    async def _handle_set_charge_rate(call):
+        """Handle set_charge_rate service call."""
+        rate = int(call.data.get("rate", 1500))
+        rate = max(0, min(rate, DEFAULT_MAX_RATE))
+        await _set_number(hass, entry.data[CONF_SOFAR_CHARGE_RATE_ENTITY], rate)
+        _LOGGER.info("Service set_charge_rate: %dW", rate)
+
+    @callback
+    async def _handle_set_discharge_rate(call):
+        """Handle set_discharge_rate service call."""
+        rate = int(call.data.get("rate", 1500))
+        rate = max(0, min(rate, DEFAULT_MAX_RATE))
+        await _set_number(hass, entry.data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], rate)
+        _LOGGER.info("Service set_discharge_rate: %dW", rate)
+
+    hass.services.async_register(DOMAIN, "set_mode", _handle_set_mode)
+    hass.services.async_register(DOMAIN, "set_charge_rate", _handle_set_charge_rate)
+    hass.services.async_register(DOMAIN, "set_discharge_rate", _handle_set_discharge_rate)
+    _LOGGER.info("SOFAR ME3000SP services registered")

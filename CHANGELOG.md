@@ -1,6 +1,21 @@
 # Changelog
 
-## v1.1.0 — 2026-06-29
+## v1.1.1 — 2026-06-29
+
+### Toegevoegd
+- `services.yaml` voor handmatige mode/rate controle via Developer Tools
+- `info.md` voor HACS-beschrijving
+- `icon.png` + `logo.png` voor HACS UI
+
+### Opgelost
+- Timing-bug: `hass.loop.time()` → `time.monotonic()` voor betrouwbare hysterese
+- Async/await: alle `_set_mode`/`_set_number` calls nu proper awaited
+- Service deregistration bij unload entry
+- Ongeldige imports verwijderd (`asyncio`, `cv`, `vol`, `CONF_NAME`, ongebruikte constants)
+- `sensor.py`: gedeelde `_get_float`/`_get_str` helpers (was 6× gedupliceerd)
+- `binary_sensor.py`: imports helpers from `sensor.py` (geen duplicatie meer)
+- `config_flow.py`: `description_placeholders` verwijderd (horen in translations)
+- `hacs.json`: vereiste velden gecorrigeerd
 
 ### Toegevoegd
 - **HACS custom integration** (`custom_components/sofar_me3000sp/`)

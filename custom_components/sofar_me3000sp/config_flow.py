@@ -6,7 +6,6 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
-from homeassistant.const import CONF_NAME
 from homeassistant.helpers import selector
 
 from .const import (
@@ -90,14 +89,4 @@ class SofarME3000SPConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=data_schema,
             errors=errors,
-            description_placeholders={
-                "export_help": "Your smart meter export entity (kW)",
-                "import_help": "Your smart meter import entity (kW)",
-                "pv_help": "Your PV power entity (W)",
-                "sofar_mode_help": "ESPHome select entity for inverter mode",
-                "sofar_charge_help": "ESPHome number entity for charge rate",
-                "sofar_discharge_help": "ESPHome number entity for discharge rate",
-                "sofar_soc_help": "ESPHome sensor entity for battery SOC",
-                "sofar_fault_help": "ESPHome sensor entity for fault messages",
-            },
         )

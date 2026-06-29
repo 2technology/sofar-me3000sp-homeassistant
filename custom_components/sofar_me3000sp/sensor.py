@@ -31,6 +31,27 @@ from .const import (
     SENSOR_VISUAL_SUMMARY,
 )
 
+_INVALID_STATES = ("unavailable", "unknown", "none", "")
+
+
+def _get_float(hass: HomeAssistant, entity_id: str) -> float:
+    """Get float value from an entity."""
+    state = hass.states.get(entity_id)
+    if state is None or state.state in _INVALID_STATES:
+        return 0.0
+    try:
+        return float(state.state)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _get_str(hass: HomeAssistant, entity_id: str) -> str:
+    """Get string state of an entity."""
+    state = hass.states.get(entity_id)
+    if state is None:
+        return ""
+    return str(state.state)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -38,7 +59,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up SOFAR ME3000SP sensors."""
-    data = entry.data
     entities = [
         SofarDerivedSensor(hass, entry, SENSOR_GRID_EXPORT_POWER, "SOFAR Grid Export Power", "mdi:transmission-tower-export", "export"),
         SofarDerivedSensor(hass, entry, SENSOR_GRID_IMPORT_POWER, "SOFAR Grid Import Power", "mdi:transmission-tower-import", "import"),
@@ -62,7 +82,6 @@ class SofarDerivedSensor(SensorEntity):
     _attr_should_poll = False
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, unique_id: str, name: str, icon: str, sensor_type: str) -> None:
-        """Initialize the sensor."""
         self._attr_unique_id = f"{DOMAIN}_{unique_id}"
         self._attr_name = name
         self._attr_icon = icon
@@ -73,26 +92,21 @@ class SofarDerivedSensor(SensorEntity):
         self._attr_available = False
 
     async def async_added_to_hass(self) -> None:
-        """Register state change listener."""
         data = self._entry.data
         tracked = [data[CONF_EXPORT_ENTITY], data[CONF_IMPORT_ENTITY], data[CONF_PV_ENTITY]]
-        self.async_on_remove(
-            async_track_state_change_event(self._hass, tracked, self._on_state_change)
-        )
+        self.async_on_remove(async_track_state_change_event(self._hass, tracked, self._on_state_change))
         self._update_state()
 
     @callback
     def _on_state_change(self, event) -> None:
-        """Handle state changes."""
         self._update_state()
         self.async_write_ha_state()
 
     def _update_state(self) -> None:
-        """Update the sensor value."""
         data = self._entry.data
-        export_w = self._get_float(data[CONF_EXPORT_ENTITY]) * 1000
-        import_w = self._get_float(data[CONF_IMPORT_ENTITY]) * 1000
-        pv_w = self._get_float(data[CONF_PV_ENTITY])
+        export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
+        import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
+        pv_w = _get_float(self._hass, data[CONF_PV_ENTITY])
         net_w = export_w - import_w
 
         self._attr_available = True
@@ -112,17 +126,6 @@ class SofarDerivedSensor(SensorEntity):
         elif self._sensor_type == "pv":
             self._attr_native_value = round(pv_w)
 
-    def _get_float(self, entity_id: str) -> float:
-        """Get float value from an entity."""
-        state = self._hass.states.get(entity_id)
-        if state is None or state.state in ("unavailable", "unknown"):
-            self._attr_available = False
-            return 0.0
-        try:
-            return float(state.state)
-        except (ValueError, TypeError):
-            return 0.0
-
 
 class SofarFlowDirectionSensor(SensorEntity):
     """Sensor that shows the current flow direction."""
@@ -131,7 +134,6 @@ class SofarFlowDirectionSensor(SensorEntity):
     _attr_icon = "mdi:state-machine"
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Initialize."""
         self._attr_unique_id = f"{DOMAIN}_{SENSOR_FLOW_DIRECTION}"
         self._attr_name = "SOFAR Flow Direction"
         self._entry = entry
@@ -140,17 +142,9 @@ class SofarFlowDirectionSensor(SensorEntity):
         self._attr_available = False
 
     async def async_added_to_hass(self) -> None:
-        """Register listener."""
         data = self._entry.data
-        tracked = [
-            data[CONF_EXPORT_ENTITY],
-            data[CONF_IMPORT_ENTITY],
-            data[CONF_SOFAR_MODE_ENTITY],
-            data[CONF_SOFAR_FAULT_ENTITY],
-        ]
-        self.async_on_remove(
-            async_track_state_change_event(self._hass, tracked, self._on_state_change)
-        )
+        tracked = [data[CONF_EXPORT_ENTITY], data[CONF_IMPORT_ENTITY], data[CONF_SOFAR_MODE_ENTITY], data[CONF_SOFAR_FAULT_ENTITY]]
+        self.async_on_remove(async_track_state_change_event(self._hass, tracked, self._on_state_change))
         self._update_state()
 
     @callback
@@ -160,10 +154,10 @@ class SofarFlowDirectionSensor(SensorEntity):
 
     def _update_state(self) -> None:
         data = self._entry.data
-        fault = self._get_str(data[CONF_SOFAR_FAULT_ENTITY])
-        mode = self._get_str(data[CONF_SOFAR_MODE_ENTITY])
-        export_w = self._get_float(data[CONF_EXPORT_ENTITY]) * 1000
-        import_w = self._get_float(data[CONF_IMPORT_ENTITY]) * 1000
+        fault = _get_str(self._hass, data[CONF_SOFAR_FAULT_ENTITY])
+        mode = _get_str(self._hass, data[CONF_SOFAR_MODE_ENTITY])
+        export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
+        import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
 
         self._attr_available = True
 
@@ -182,21 +176,6 @@ class SofarFlowDirectionSensor(SensorEntity):
         else:
             self._attr_native_value = "importing"
 
-    def _get_float(self, entity_id: str) -> float:
-        state = self._hass.states.get(entity_id)
-        if state is None or state.state in ("unavailable", "unknown"):
-            return 0.0
-        try:
-            return float(state.state)
-        except (ValueError, TypeError):
-            return 0.0
-
-    def _get_str(self, entity_id: str) -> str:
-        state = self._hass.states.get(entity_id)
-        if state is None:
-            return ""
-        return str(state.state)
-
 
 class SofarVisualSummarySensor(SensorEntity):
     """Sensor that shows a compact visual summary."""
@@ -205,7 +184,6 @@ class SofarVisualSummarySensor(SensorEntity):
     _attr_icon = "mdi:chart-box-outline"
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Initialize."""
         self._attr_unique_id = f"{DOMAIN}_{SENSOR_VISUAL_SUMMARY}"
         self._attr_name = "SOFAR Visual Summary"
         self._entry = entry
@@ -216,9 +194,7 @@ class SofarVisualSummarySensor(SensorEntity):
     async def async_added_to_hass(self) -> None:
         data = self._entry.data
         tracked = [data[CONF_EXPORT_ENTITY], data[CONF_IMPORT_ENTITY], data[CONF_PV_ENTITY], data[CONF_SOFAR_MODE_ENTITY]]
-        self.async_on_remove(
-            async_track_state_change_event(self._hass, tracked, self._on_state_change)
-        )
+        self.async_on_remove(async_track_state_change_event(self._hass, tracked, self._on_state_change))
         self._update_state()
 
     @callback
@@ -228,10 +204,10 @@ class SofarVisualSummarySensor(SensorEntity):
 
     def _update_state(self) -> None:
         data = self._entry.data
-        pv = self._get_float(data[CONF_PV_ENTITY])
-        export_w = self._get_float(data[CONF_EXPORT_ENTITY]) * 1000
-        import_w = self._get_float(data[CONF_IMPORT_ENTITY]) * 1000
-        mode = self._get_str(data[CONF_SOFAR_MODE_ENTITY])
+        pv = _get_float(self._hass, data[CONF_PV_ENTITY])
+        export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
+        import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
+        mode = _get_str(self._hass, data[CONF_SOFAR_MODE_ENTITY])
         net_w = export_w - import_w
 
         self._attr_available = True
@@ -242,18 +218,3 @@ class SofarVisualSummarySensor(SensorEntity):
             f"Netto {round(net_w)} W · "
             f"Mode {mode}"
         )
-
-    def _get_float(self, entity_id: str) -> float:
-        state = self._hass.states.get(entity_id)
-        if state is None or state.state in ("unavailable", "unknown"):
-            return 0.0
-        try:
-            return float(state.state)
-        except (ValueError, TypeError):
-            return 0.0
-
-    def _get_str(self, entity_id: str) -> str:
-        state = self._hass.states.get(entity_id)
-        if state is None:
-            return ""
-        return str(state.state)
