@@ -278,6 +278,33 @@ input_number:
     icon: mdi:battery-alert
     initial: 35
 
+  sofar_soc_force_charge:
+    name: SOFAR SOC Force Charge %
+    min: 0
+    max: 50
+    step: 1
+    mode: box
+    icon: mdi:battery-alert-variant-outline
+    initial: 20
+
+  sofar_force_charge_rate_w:
+    name: SOFAR Force Charge Rate W
+    min: 100
+    max: 3000
+    step: 50
+    mode: box
+    icon: mdi:battery-charging
+    initial: 1500
+
+  sofar_soc_force_charge_target:
+    name: SOFAR SOC Force Charge Target %
+    min: 20
+    max: 100
+    step: 1
+    mode: box
+    icon: mdi:battery-charging-high
+    initial: 50
+
 # -----------------------------------------------------------------------------
 # AUTOMATIONS — de echte regels
 # -----------------------------------------------------------------------------
@@ -426,17 +453,19 @@ automation:
 
   - id: sofar_force_charge_low_soc
     alias: "🪫 SOFAR: Force Charge bij kritisch lage SOC"
-    description: "Laad batterij ongeacht PV/export als SOC onder 20% zakt"
+    description: "Laad batterij ongeacht PV/export als SOC onder drempel zakt"
     mode: single
     trigger:
       - platform: numeric_state
         entity_id: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc
-        below: 20
+        below: "{{ states('input_number.sofar_soc_force_charge') | float(20) }}"
     condition:
       - condition: state
         entity_id: sensor.sofar_me3000sp_sofar_me3000sp_fault_messages
         state: "OK"
     action:
+      - variables:
+          force_rate: "{{ states('input_number.sofar_force_charge_rate_w') | float(1500) }}"
       - service: select.select_option
         target:
           entity_id: select.sofar_me3000sp_sofar_me3000sp_mode
@@ -446,11 +475,11 @@ automation:
         target:
           entity_id: number.sofar_me3000sp_sofar_me3000sp_charge_rate
         data:
-          value: 1500
+          value: "{{ force_rate }}"
       - wait_for_trigger:
           - platform: numeric_state
             entity_id: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc
-            above: 50
+            above: "{{ states('input_number.sofar_soc_force_charge_target') | float(50) }}"
         timeout: "04:00:00"
       - service: select.select_option
         target:

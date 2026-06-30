@@ -74,6 +74,7 @@ class SofarNumberHelper(NumberEntity):
     ) -> None:
         """Initialize."""
         self._entry = entry
+        self._hass = hass
         self._base_unique_id = unique_id
         self._attr_unique_id = f"{DOMAIN}_{unique_id}"
         self._attr_name = name
@@ -82,14 +83,16 @@ class SofarNumberHelper(NumberEntity):
         self._attr_native_max_value = native_max_value
         self._attr_native_step = native_step
         self._attr_native_value = initial_value
-        self._attr_device_info = _get_device_info(entry)
+        self._attr_device_info = _get_device_info(entry, hass)
 
     async def async_added_to_hass(self) -> None:
-        """Register entity_id mapping after entity is created."""
+        """Restore previous value and register entity_id mapping."""
         await super().async_added_to_hass()
         store = self.hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
         mapping = store.setdefault("number_entity_ids", {})
         mapping[self._attr_unique_id] = self.entity_id
+        if (last := await self.async_get_last_number_data()) is not None:
+            self._attr_native_value = last.native_value
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

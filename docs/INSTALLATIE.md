@@ -49,6 +49,11 @@ fallback_ap_password: "KIES_EEN_WACHTWOORD"
 
 4. Sluit de hardware aan volgens dit schema:
 
+![SOFAR hardware aansluitschema](../assets/hardware-wiring-diagram.svg)
+
+<details>
+<summary>Tekstversie (voor copy/paste)</summary>
+
 ```text
 ESP32              MAX3485           SOFAR 485s
 GPIO16 (RX)  ----> RO
@@ -59,6 +64,12 @@ GND          ----> GND
                     A  ------------>  A (485s poort)
                     B  ------------>  B (485s poort)
 ```
+
+</details>
+
+- **GPIO5** drijft zowel **DE** als **RE**. Hierdoor schakelt de MAX3485 automatisch tussen TX en RX.
+- Gebruik een **3.3V MAX3485-module**. Een 5V-module kan de ESP32 beschadigen.
+- Kabels A/B niet omdraaien; de meeste problemen zijn A/B verwisseld of de SOFAR niet in **Passive Mode**.
 
 5. Flash eerst via USB.
 6. Daarna kan OTA.

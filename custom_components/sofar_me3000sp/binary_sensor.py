@@ -58,7 +58,7 @@ class SofarBinarySensor(BinarySensorEntity):
         self._hass = hass
         self._attr_is_on = False
         self._attr_available = False
-        self._attr_device_info = _get_device_info(entry)
+        self._attr_device_info = _get_device_info(entry, hass)
 
     async def async_added_to_hass(self) -> None:
         data = self._entry.data
@@ -80,6 +80,13 @@ class SofarBinarySensor(BinarySensorEntity):
 
     def _update_state(self) -> None:
         data = self._entry.data
+        mode_state = self._hass.states.get(data[CONF_SOFAR_MODE_ENTITY])
+        fault_state = self._hass.states.get(data[CONF_SOFAR_FAULT_ENTITY])
+        export_state = self._hass.states.get(data[CONF_EXPORT_ENTITY])
+        import_state = self._hass.states.get(data[CONF_IMPORT_ENTITY])
+        charge_state = self._hass.states.get(data[CONF_SOFAR_CHARGE_RATE_ENTITY])
+        discharge_state = self._hass.states.get(data[CONF_SOFAR_DISCHARGE_RATE_ENTITY])
+
         mode = _get_str(self._hass, data[CONF_SOFAR_MODE_ENTITY])
         fault = _get_str(self._hass, data[CONF_SOFAR_FAULT_ENTITY])
         export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
@@ -87,17 +94,21 @@ class SofarBinarySensor(BinarySensorEntity):
         charge_rate = _get_float(self._hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY])
         discharge_rate = _get_float(self._hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY])
 
-        self._attr_available = True
-
         if self._sensor_type == "charging":
+            self._attr_available = mode_state is not None and charge_state is not None
             self._attr_is_on = mode == "charge" and charge_rate > 0
         elif self._sensor_type == "discharging":
+            self._attr_available = mode_state is not None and discharge_state is not None
             self._attr_is_on = mode == "discharge" and discharge_rate > 0
         elif self._sensor_type == "exporting":
+            self._attr_available = export_state is not None and import_state is not None
             self._attr_is_on = export_w > import_w
         elif self._sensor_type == "importing":
+            self._attr_available = export_state is not None and import_state is not None
             self._attr_is_on = import_w > export_w
         elif self._sensor_type == "balanced":
+            self._attr_available = export_state is not None and import_state is not None
             self._attr_is_on = abs(export_w - import_w) <= 150
         elif self._sensor_type == "alarm":
+            self._attr_available = fault_state is not None
             self._attr_is_on = fault not in ("OK", "unavailable", "unknown", "")

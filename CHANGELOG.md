@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.1.4 — 2026-06-29
+
+### Toegevoegd
+- SVG hardware aansluitschema voor ESP32 ↔ MAX3485 ↔ SOFAR 485s
+- Tekst fallback aansluitschema in `docs/INSTALLATIE.md`
+- YAML package: force-charge helpers nu tunebaar via UI (`sofar_soc_force_charge`, `sofar_soc_force_charge_target`, `sofar_force_charge_rate_w`)
+- `number.py`: restore previous value via `async_get_last_number_data()`
+- `sensor.py` / `binary_sensor.py`: availability afgeleid van bron entities (echte HA best practice)
+- `entity.py`: `sw_version` nu dynamisch uit `manifest.json`
+
+### Opgelost
+- `_get_device_info(..., hass)` doorgegeven in alle platforms (was gebroken na entity.py introductie)
+- `manifest.json`: documentatie-link verwijst nu naar Forgejo
+- README badge versie → 1.1.4
+
 ## v1.1.3 — 2026-06-29
 
 ### Toegevoegd

@@ -1,0 +1,87 @@
+<svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" style="background:#0E1A2B;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">
+  <defs>
+    <style>
+      .box { stroke:#39FF8A; stroke-width:2; rx:6; }
+      .esp { fill:#132238; }
+      .max { fill:#1A1028; }
+      .sofar { fill:#231314; }
+      .text { fill:#E0E0E0; font-size:15px; }
+      .title { fill:#39FF8A; font-size:18px; font-weight:bold; }
+      .pin { fill:#39FF8A; font-size:13px; }
+      .wire { stroke:#FF5C8A; stroke-width:2; fill:none; }
+      .wire-label { fill:#FF5C8A; font-size:12px; }
+      .ground { stroke:#888; stroke-width:2; }
+      .arrow { fill:#FF5C8A; }
+    </style>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FF5C8A" />
+    </marker>
+  </defs>
+
+  <!-- ESP32 -->
+  <rect x="40" y="40" width="220" height="440" class="box esp" />
+  <text x="150" y="70" text-anchor="middle" class="title">ESP32</text>
+  <text x="150" y="95" text-anchor="middle" class="text">ESP32 dev board</text>
+
+  <!-- ESP32 pins -->
+  <text x="60" y="140" class="pin">GPIO17 (TX)</text>
+  <text x="60" y="180" class="pin">GPIO16 (RX)</text>
+  <text x="60" y="220" class="pin">GPIO5</text>
+  <text x="60" y="320" class="pin">3.3V</text>
+  <text x="60" y="420" class="pin">GND</text>
+
+  <!-- MAX3485 -->
+  <rect x="340" y="80" width="220" height="360" class="box max" />
+  <text x="450" y="110" text-anchor="middle" class="title">MAX3485</text>
+  <text x="450" y="135" text-anchor="middle" class="text">3.3V RS485 module</text>
+
+  <!-- MAX3485 pins -->
+  <text x="360" y="170" class="pin">DI</text>
+  <text x="360" y="210" class="pin">RO</text>
+  <text x="360" y="250" class="pin">DE</text>
+  <text x="360" y="270" class="pin">RE</text>
+  <text x="360" y="320" class="pin">VCC</text>
+  <text x="360" y="380" class="pin">GND</text>
+  <text x="360" y="420" class="pin">A</text>
+  <text x="360" y="440" class="pin">B</text>
+
+  <!-- SOFAR -->
+  <rect x="640" y="120" width="140" height="280" class="box sofar" />
+  <text x="710" y="150" text-anchor="middle" class="title">SOFAR</text>
+  <text x="710" y="175" text-anchor="middle" class="text">ME3000SP</text>
+  <text x="710" y="210" text-anchor="middle" class="text">485s poort</text>
+
+  <!-- SOFAR pins -->
+  <text x="660" y="330" class="pin">A</text>
+  <text x="660" y="370" class="pin">B</text>
+  <text x="660" y="270" class="text">Modbus 0x42</text>
+
+  <!-- Wires -->
+  <!-- TX -> DI -->
+  <line x1="260" y1="145" x2="340" y2="165" class="wire" marker-end="url(#arr)" />
+  <!-- RX -> RO -->
+  <line x1="260" y1="185" x2="340" y2="205" class="wire" marker-end="url(#arr)" />
+  <!-- GPIO5 -> DE+RE -->
+  <line x1="260" y1="225" x2="340" y2="250" class="wire" marker-end="url(#arr)" />
+  <!-- 3.3V -> VCC -->
+  <line x1="260" y1="325" x2="340" y2="315" class="wire" marker-end="url(#arr)" />
+  <!-- GND -> GND -->
+  <line x1="260" y1="425" x2="340" y2="375" class="wire" marker-end="url(#arr)" />
+  <!-- A -> A -->
+  <line x1="560" y1="420" x2="640" y2="325" class="wire" marker-end="url(#arr)" />
+  <!-- B -> B -->
+  <line x1="560" y1="440" x2="640" y2="365" class="wire" marker-end="url(#arr)" />
+
+  <!-- Wire labels -->
+  <text x="300" y="145" text-anchor="middle" class="wire-label">TX</text>
+  <text x="300" y="185" text-anchor="middle" class="wire-label">RX</text>
+  <text x="290" y="230" text-anchor="middle" class="wire-label">GPIO5</text>
+  <text x="300" y="315" text-anchor="middle" class="wire-label">3.3V</text>
+  <text x="300" y="410" text-anchor="middle" class="wire-label">GND</text>
+  <text x="600" y="410" text-anchor="middle" class="wire-label">A</text>
+  <text x="600" y="430" text-anchor="middle" class="wire-label">B</text>
+
+  <!-- Notes -->
+  <text x="40" y="505" class="text">GPIO5 drijft zowel DE als RE (tegelijk schakelen tussen TX/RX).</text>
+  <text x="40" y="525" class="text">Gebruik een 3.3V MAX3485-module; 5V-modules kunnen de ESP32 beschadigen.</text>
+</svg>

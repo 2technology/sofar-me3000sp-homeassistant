@@ -91,7 +91,7 @@ class SofarDerivedSensor(SensorEntity):
         self._hass = hass
         self._attr_native_value = 0.0
         self._attr_available = False
-        self._attr_device_info = _get_device_info(entry)
+        self._attr_device_info = _get_device_info(entry, hass)
 
     async def async_added_to_hass(self) -> None:
         data = self._entry.data
@@ -106,12 +106,19 @@ class SofarDerivedSensor(SensorEntity):
 
     def _update_state(self) -> None:
         data = self._entry.data
+        export_state = self._hass.states.get(data[CONF_EXPORT_ENTITY])
+        import_state = self._hass.states.get(data[CONF_IMPORT_ENTITY])
+        pv_state = self._hass.states.get(data[CONF_PV_ENTITY])
+
+        self._attr_available = (
+            export_state is not None and export_state.state not in _INVALID_STATES
+            and import_state is not None and import_state.state not in _INVALID_STATES
+        )
+
         export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
         import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
         pv_w = _get_float(self._hass, data[CONF_PV_ENTITY])
         net_w = export_w - import_w
-
-        self._attr_available = True
 
         if self._sensor_type == "export":
             self._attr_native_value = round(export_w)
@@ -126,6 +133,7 @@ class SofarDerivedSensor(SensorEntity):
         elif self._sensor_type == "house_load":
             self._attr_native_value = round(pv_w + import_w - export_w)
         elif self._sensor_type == "pv":
+            self._attr_available = pv_state is not None and pv_state.state not in _INVALID_STATES
             self._attr_native_value = round(pv_w)
 
 
@@ -142,7 +150,7 @@ class SofarFlowDirectionSensor(SensorEntity):
         self._hass = hass
         self._attr_native_value = "unknown"
         self._attr_available = False
-        self._attr_device_info = _get_device_info(entry)
+        self._attr_device_info = _get_device_info(entry, hass)
 
     async def async_added_to_hass(self) -> None:
         data = self._entry.data
@@ -157,12 +165,22 @@ class SofarFlowDirectionSensor(SensorEntity):
 
     def _update_state(self) -> None:
         data = self._entry.data
+        fault_state = self._hass.states.get(data[CONF_SOFAR_FAULT_ENTITY])
+        mode_state = self._hass.states.get(data[CONF_SOFAR_MODE_ENTITY])
+        export_state = self._hass.states.get(data[CONF_EXPORT_ENTITY])
+        import_state = self._hass.states.get(data[CONF_IMPORT_ENTITY])
+
+        self._attr_available = (
+            fault_state is not None and fault_state.state not in _INVALID_STATES
+            and mode_state is not None and mode_state.state not in _INVALID_STATES
+            and export_state is not None and export_state.state not in _INVALID_STATES
+            and import_state is not None and import_state.state not in _INVALID_STATES
+        )
+
         fault = _get_str(self._hass, data[CONF_SOFAR_FAULT_ENTITY])
         mode = _get_str(self._hass, data[CONF_SOFAR_MODE_ENTITY])
         export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
         import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
-
-        self._attr_available = True
 
         if fault not in ("OK", "unavailable", "unknown", ""):
             self._attr_native_value = "alarm"
@@ -193,7 +211,7 @@ class SofarVisualSummarySensor(SensorEntity):
         self._hass = hass
         self._attr_native_value = ""
         self._attr_available = False
-        self._attr_device_info = _get_device_info(entry)
+        self._attr_device_info = _get_device_info(entry, hass)
 
     async def async_added_to_hass(self) -> None:
         data = self._entry.data
@@ -208,13 +226,24 @@ class SofarVisualSummarySensor(SensorEntity):
 
     def _update_state(self) -> None:
         data = self._entry.data
+        export_state = self._hass.states.get(data[CONF_EXPORT_ENTITY])
+        import_state = self._hass.states.get(data[CONF_IMPORT_ENTITY])
+        pv_state = self._hass.states.get(data[CONF_PV_ENTITY])
+        mode_state = self._hass.states.get(data[CONF_SOFAR_MODE_ENTITY])
+
+        self._attr_available = (
+            export_state is not None and export_state.state not in _INVALID_STATES
+            and import_state is not None and import_state.state not in _INVALID_STATES
+            and pv_state is not None and pv_state.state not in _INVALID_STATES
+            and mode_state is not None and mode_state.state not in _INVALID_STATES
+        )
+
         pv = _get_float(self._hass, data[CONF_PV_ENTITY])
         export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
         import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
         mode = _get_str(self._hass, data[CONF_SOFAR_MODE_ENTITY])
         net_w = export_w - import_w
 
-        self._attr_available = True
         self._attr_native_value = (
             f"PV {round(pv)} W · "
             f"Export {round(export_w)} W · "
