@@ -57,11 +57,28 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+_INVALID_STATES = ("unavailable", "unknown", "none", "")
+
+
 def _get_number_entity_id(hass: HomeAssistant, entry_id: str, unique_id: str) -> str | None:
     """Find entity_id for a number helper by its unique_id within an entry."""
     store = hass.data.setdefault(DOMAIN, {}).setdefault(entry_id, {})
     mapping = store.setdefault("number_entity_ids", {})
     return mapping.get(f"{DOMAIN}_{unique_id}")
+
+
+def _get_number_helper(hass: HomeAssistant, entry_id: str, helper_id: str, default: float) -> float:
+    """Get value of a number helper, falling back to default if not found or invalid."""
+    entity_id = _get_number_entity_id(hass, entry_id, helper_id)
+    if entity_id is None:
+        return default
+    state = hass.states.get(entity_id)
+    if state is None or state.state in _INVALID_STATES:
+        return default
+    try:
+        return float(state.state)
+    except (ValueError, TypeError):
+        return default
 
 
 class SofarNumberHelper(NumberEntity):
@@ -95,7 +112,7 @@ class SofarNumberHelper(NumberEntity):
     async def async_added_to_hass(self) -> None:
         """Restore previous value and register entity_id mapping."""
         await super().async_added_to_hass()
-        self._attr_device_info = _get_device_info(self._entry, self.hass)
+        self._attr_device_info = _get_device_info(self._entry)
         store = self.hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
         mapping = store.setdefault("number_entity_ids", {})
         mapping[self._attr_unique_id] = self.entity_id

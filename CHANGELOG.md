@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.1.6 — 2026-06-30
+
+### Kritieke bugfixes
+- **`entity.py`**: `HomeAssistant` niet geïmporteerd maar gebruikt als type hint → `NameError` at runtime. Oplossing: uses `VERSION` constant from `const.py` i.p.v. `async_get_integration` (syncroon, geen import nodig).
+- **`entity.py`**: `async_get_integration` is async maar werd zonder `await` aangeroepen → retourneerde coroutine, niet Integration. Volledig verwijderd.
+- **`_get_number_helper`**: negeerde `default` parameter bij ongeldige entity state. Geconsolideerd in `number.py` met correcte fallback.
+- **`async_unload_entry`**: verwijderde altijd alle services, ook bij multi-entry. Nu alleen bij laatste entry.
+
+### Best practices
+- **`_get_number_helper`** niet meer 3x gedupliceerd — gedefinieerd in `number.py`, geïmporteerd waar nodig.
+- **`config_flow.py`**: unique ID check toegevoegd — voorkomt duplicate entries met dezelfde SOFAR mode entity.
+- **`force_charge_low_soc`** automation: `mode: single` → `mode: restart` (herstart bij verdere SOC daling).
+- **Onnodige imports** verwijderd (`_get_number_entity_id` in `sensor.py` en `__init__.py`).
+- **`sw_version`**: komt nu uit `const.VERSION` i.p.v. `async_get_integration` — eenvoudiger, sneller, geen async nodig.
+
+### Visueel
+- **SVG hardware schema** volledig opnieuw ontworpen: label backgrounds, branched DE/RE routing, twisted-pair A/B curves, notes-balk.
+- **README** hardware aansluitschema nu met SVG + tekst fallback.
+- **README** tuning table uitgebreid naar 11 drempels (force-charge toegevoegd).
+- **README** "8 tunable drempels" gecorrigeerd naar "11 tunable drempels" op alle plaatsen.
+
 ## v1.1.5 — 2026-06-29
 
 ### Toegevoegd

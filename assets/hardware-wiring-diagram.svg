@@ -1,17 +1,18 @@
-<svg viewBox="0 0 900 580" xmlns="http://www.w3.org/2000/svg" style="background:#0B1421;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">
+<svg viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" style="background:#0B1421;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">
   <defs>
     <style>
-      .box { stroke-width:2.5; rx:10; }
+      .box { stroke-width:2.5; }
       .esp { fill:url(#espGrad); stroke:#39FF8A; }
       .max { fill:url(#maxGrad); stroke:#FF5C8A; }
       .sofar { fill:url(#sofarGrad); stroke:#00D4FF; }
       .text { fill:#E0E0E0; font-size:15px; }
-      .title { font-size:20px; font-weight:bold; }
+      .title { font-size:22px; font-weight:bold; }
+      .subtitle { font-size:13px; opacity:0.7; }
       .esp-title { fill:#39FF8A; }
       .max-title { fill:#FF5C8A; }
       .sofar-title { fill:#00D4FF; }
       .pin { font-size:13px; }
-      .wire { stroke-width:3; fill:none; stroke-linecap:round; }
+      .wire { stroke-width:2.5; fill:none; stroke-linecap:round; }
       .tx { stroke:#39FF8A; }
       .rx { stroke:#00D4FF; }
       .ctrl { stroke:#FF5C8A; }
@@ -27,7 +28,9 @@
       .bus-label { fill:#FF5C8A; }
       .note { fill:#A0B4C8; font-size:13px; }
       .glow { filter:url(#glow); }
+      .label-bg { fill:#0B1421; opacity:0.9; rx:4; }
     </style>
+
     <linearGradient id="espGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#132238;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#0A1929;stop-opacity:1" />
@@ -40,13 +43,15 @@
       <stop offset="0%" style="stop-color:#0A2530;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#051520;stop-opacity:1" />
     </linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
       <feMerge>
         <feMergeNode in="coloredBlur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
+
     <marker id="arrowTx" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#39FF8A" />
     </marker>
@@ -65,87 +70,146 @@
     <marker id="arrowBus" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#FF5C8A" />
     </marker>
+
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1A2A40" stroke-width="0.5"/>
+    </pattern>
   </defs>
 
-  <!-- Background grid -->
-  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1A2A40" stroke-width="0.5"/>
-  </pattern>
-  <rect width="900" height="580" fill="url(#grid)" />
+  <rect width="960" height="620" fill="url(#grid)" />
 
-  <!-- ESP32 -->
-  <rect x="50" y="60" width="240" height="460" class="box esp glow" />
-  <text x="170" y="95" text-anchor="middle" class="title esp-title">ESP32</text>
-  <text x="170" y="118" text-anchor="middle" class="text">ESP32 dev board</text>
-  <text x="170" y="140" text-anchor="middle" class="text" style="font-size:12px;fill:#39FF8A;opacity:0.8">UART2 → RS485</text>
+  <!-- Title -->
+  <text x="480" y="30" text-anchor="middle" class="title" style="fill:#E0E0E0;font-size:16px">SOFAR ME3000SP — Hardware Aansluitschema</text>
+  <text x="480" y="48" text-anchor="middle" class="subtitle" style="fill:#A0B4C8;font-size:12px">ESP32 + MAX3485 RS485 → SOFAR 485s Modbus 0x42</text>
 
-  <text x="70" y="185" class="pin esp-title">GPIO17 (TX)</text>
-  <text x="70" y="230" class="pin rx-label">GPIO16 (RX)</text>
-  <text x="70" y="275" class="pin ctrl-label">GPIO5</text>
-  <text x="70" y="360" class="pin pwr-label">3.3V</text>
-  <text x="70" y="465" class="pin gnd-label">GND</text>
+  <!-- ============ ESP32 ============ -->
+  <rect x="50" y="75" width="240" height="470" rx="12" class="box esp glow" />
+  <text x="170" y="105" text-anchor="middle" class="title esp-title">ESP32</text>
+  <text x="170" y="125" text-anchor="middle" class="subtitle" style="fill:#39FF8A">Dev Board · 3.3V logic</text>
 
-  <!-- MAX3485 -->
-  <rect x="380" y="110" width="260" height="360" class="box max glow" />
-  <text x="510" y="145" text-anchor="middle" class="title max-title">MAX3485</text>
-  <text x="510" y="168" text-anchor="middle" class="text">3.3V RS485 transceiver</text>
-  <text x="510" y="190" text-anchor="middle" class="text" style="font-size:12px;fill:#FF5C8A;opacity:0.8">DE + RE tied together</text>
+  <!-- ESP32 pin labels with background -->
+  <rect x="60" y="155" width="180" height="28" rx="5" class="label-bg" />
+  <text x="70" y="173" class="pin esp-title">GPIO17 (TX)</text>
 
-  <text x="400" y="220" class="pin max-title">DI</text>
-  <text x="400" y="265" class="pin rx-label">RO</text>
-  <text x="400" y="310" class="pin ctrl-label">DE</text>
-  <text x="400" y="332" class="pin ctrl-label">RE</text>
-  <text x="400" y="380" class="pin pwr-label">VCC</text>
-  <text x="400" y="435" class="pin gnd-label">GND</text>
-  <text x="400" y="475" class="pin bus-label">A</text>
-  <text x="400" y="497" class="pin bus-label">B</text>
+  <rect x="60" y="195" width="180" height="28" rx="5" class="label-bg" />
+  <text x="70" y="213" class="pin rx-label">GPIO16 (RX)</text>
 
-  <!-- SOFAR -->
-  <rect x="720" y="150" width="150" height="280" class="box sofar glow" />
-  <text x="795" y="185" text-anchor="middle" class="title sofar-title">SOFAR</text>
-  <text x="795" y="208" text-anchor="middle" class="text">ME3000SP</text>
-  <text x="795" y="240" text-anchor="middle" class="text" style="font-size:13px">485s poort</text>
-  <text x="795" y="265" text-anchor="middle" class="text" style="font-size:12px;fill:#00D4FF;opacity:0.8">Modbus 0x42</text>
+  <rect x="60" y="235" width="180" height="28" rx="5" class="label-bg" />
+  <text x="70" y="253" class="pin ctrl-label">GPIO5 (DE/RE)</text>
 
-  <text x="740" y="340" class="pin bus-label">A</text>
-  <text x="740" y="385" class="pin bus-label">B</text>
+  <rect x="60" y="330" width="180" height="28" rx="5" class="label-bg" />
+  <text x="70" y="348" class="pin pwr-label">3.3V</text>
 
-  <!-- Connection dots -->
-  <circle cx="290" cy="190" r="5" fill="#39FF8A" />
-  <circle cx="290" cy="235" r="5" fill="#00D4FF" />
-  <circle cx="290" cy="280" r="5" fill="#FF5C8A" />
-  <circle cx="290" cy="365" r="5" fill="#FFD700" />
-  <circle cx="290" cy="470" r="5" fill="#888" />
-  <circle cx="640" cy="486" r="5" fill="#FF5C8A" />
-  <circle cx="640" cy="508" r="5" fill="#FF5C8A" />
+  <rect x="60" y="445" width="180" height="28" rx="5" class="label-bg" />
+  <text x="70" y="463" class="pin gnd-label">GND</text>
 
-  <!-- Wires -->
+  <!-- ESP32 connection dots -->
+  <circle cx="245" cy="169" r="5" fill="#39FF8A" class="glow"/>
+  <circle cx="245" cy="209" r="5" fill="#00D4FF" class="glow"/>
+  <circle cx="245" cy="249" r="5" fill="#FF5C8A" class="glow"/>
+  <circle cx="245" cy="344" r="5" fill="#FFD700" class="glow"/>
+  <circle cx="245" cy="459" r="5" fill="#888" />
+
+  <!-- ============ MAX3485 ============ -->
+  <rect x="400" y="120" width="260" height="380" rx="12" class="box max glow" />
+  <text x="530" y="150" text-anchor="middle" class="title max-title">MAX3485</text>
+  <text x="530" y="170" text-anchor="middle" class="subtitle" style="fill:#FF5C8A">3.3V RS485 Transceiver</text>
+  <text x="530" y="190" text-anchor="middle" class="subtitle" style="fill:#FF5C8A;font-size:11px">DE + RE tied together</text>
+
+  <!-- MAX3485 pin labels -->
+  <rect x="410" y="210" width="180" height="28" rx="5" class="label-bg" />
+  <text x="418" y="228" class="pin max-title">DI</text>
+
+  <rect x="410" y="250" width="180" height="28" rx="5" class="label-bg" />
+  <text x="418" y="268" class="pin rx-label">RO</text>
+
+  <rect x="410" y="290" width="180" height="28" rx="5" class="label-bg" />
+  <text x="418" y="308" class="pin ctrl-label">DE</text>
+
+  <rect x="410" y="320" width="180" height="28" rx="5" class="label-bg" />
+  <text x="418" y="338" class="pin ctrl-label">RE</text>
+
+  <rect x="410" y="370" width="180" height="28" rx="5" class="label-bg" />
+  <text x="418" y="388" class="pin pwr-label">VCC</text>
+
+  <rect x="410" y="420" width="180" height="28" rx="5" class="label-bg" />
+  <text x="418" y="438" class="pin gnd-label">GND</text>
+
+  <rect x="410" y="460" width="180" height="28" rx="5" class="label-bg" />
+  <text x="418" y="478" class="pin bus-label">A</text>
+
+  <rect x="410" y="480" width="180" height="28" rx="5" class="label-bg" />
+  <text x="418" y="498" class="pin bus-label">B</text>
+
+  <!-- MAX3485 connection dots -->
+  <circle cx="595" cy="224" r="5" fill="#39FF8A" class="glow"/>
+  <circle cx="595" cy="264" r="5" fill="#00D4FF" class="glow"/>
+  <circle cx="595" cy="304" r="5" fill="#FF5C8A" class="glow"/>
+  <circle cx="595" cy="334" r="5" fill="#FF5C8A" class="glow"/>
+  <circle cx="595" cy="384" r="5" fill="#FFD700" class="glow"/>
+  <circle cx="595" cy="434" r="5" fill="#888" />
+  <circle cx="595" cy="474" r="5" fill="#FF5C8A" class="glow"/>
+  <circle cx="595" cy="494" r="5" fill="#FF5C8A" class="glow"/>
+
+  <!-- ============ SOFAR ============ -->
+  <rect x="760" y="160" width="160" height="300" rx="12" class="box sofar glow" />
+  <text x="840" y="190" text-anchor="middle" class="title sofar-title">SOFAR</text>
+  <text x="840" y="210" text-anchor="middle" class="text">ME3000SP</text>
+  <text x="840" y="235" text-anchor="middle" class="subtitle" style="fill:#00D4FF;font-size:13px">485s poort</text>
+  <text x="840" y="252" text-anchor="middle" class="subtitle" style="fill:#00D4FF;font-size:11px">Modbus 0x42</text>
+
+  <!-- SOFAR pin labels -->
+  <rect x="775" y="350" width="120" height="28" rx="5" class="label-bg" />
+  <text x="840" y="368" text-anchor="middle" class="pin bus-label">A</text>
+
+  <rect x="775" y="395" width="120" height="28" rx="5" class="label-bg" />
+  <text x="840" y="413" text-anchor="middle" class="pin bus-label">B</text>
+
+  <circle cx="780" cy="364" r="5" fill="#FF5C8A" class="glow"/>
+  <circle cx="780" cy="409" r="5" fill="#FF5C8A" class="glow"/>
+
+  <!-- ============ WIRES ============ -->
   <!-- TX → DI -->
-  <path d="M 290 190 L 380 220" class="wire tx" marker-end="url(#arrowTx)" />
-  <!-- RX → RO -->
-  <path d="M 290 235 L 380 265" class="wire rx" marker-end="url(#arrowRx)" />
-  <!-- GPIO5 → DE+RE -->
-  <path d="M 290 280 L 335 280 L 335 321 L 380 321" class="wire ctrl" marker-end="url(#arrowCtrl)" />
+  <path d="M 245 169 L 400 224" class="wire tx" marker-end="url(#arrowTx)" />
+  <!-- RX ← RO -->
+  <path d="M 245 209 L 400 264" class="wire rx" marker-end="url(#arrowRx)" />
+  <!-- GPIO5 → DE+RE (branched) -->
+  <path d="M 245 249 L 330 249 L 330 304 L 410 304" class="wire ctrl" marker-end="url(#arrowCtrl)" />
+  <path d="M 330 319 L 330 334 L 410 334" class="wire ctrl" marker-end="url(#arrowCtrl)" />
+  <circle cx="330" cy="249" r="4" fill="#FF5C8A" />
   <!-- 3.3V → VCC -->
-  <path d="M 290 365 L 380 380" class="wire pwr" marker-end="url(#arrowPwr)" />
+  <path d="M 245 344 L 400 384" class="wire pwr" marker-end="url(#arrowPwr)" />
   <!-- GND → GND -->
-  <path d="M 290 470 L 380 435" class="wire gnd" marker-end="url(#arrowGnd)" />
-  <!-- A → A -->
-  <path d="M 640 486 L 720 340" class="wire bus" marker-end="url(#arrowBus)" />
+  <path d="M 245 459 L 400 434" class="wire gnd" marker-end="url(#arrowGnd)" />
+  <!-- A → A (twisted pair look) -->
+  <path d="M 595 474 C 680 460, 700 380, 780 364" class="wire bus" marker-end="url(#arrowBus)" />
   <!-- B → B -->
-  <path d="M 640 508 L 720 385" class="wire bus" marker-end="url(#arrowBus)" />
+  <path d="M 595 494 C 680 510, 700 425, 780 409" class="wire bus" marker-end="url(#arrowBus)" />
 
-  <!-- Wire labels -->
-  <text x="330" y="180" text-anchor="middle" class="wire-label tx-label">TX</text>
-  <text x="330" y="230" text-anchor="middle" class="wire-label rx-label">RX</text>
-  <text x="360" y="300" text-anchor="middle" class="wire-label ctrl-label">GPIO5</text>
-  <text x="330" y="355" text-anchor="middle" class="wire-label pwr-label">3.3V</text>
-  <text x="330" y="450" text-anchor="middle" class="wire-label gnd-label">GND</text>
-  <text x="680" y="420" text-anchor="middle" class="wire-label bus-label">A</text>
-  <text x="680" y="455" text-anchor="middle" class="wire-label bus-label">B</text>
+  <!-- ============ WIRE LABELS ============ -->
+  <rect x="310" y="160" width="40" height="20" rx="4" class="label-bg" />
+  <text x="330" y="174" text-anchor="middle" class="wire-label tx-label">TX</text>
 
-  <!-- Notes -->
-  <text x="50" y="545" class="note">⚡ GPIO5 drives both DE and RE — the MAX3485 auto-switches between TX and RX.</text>
-  <text x="50" y="565" class="note">🔋 Use a 3.3V MAX3485 module. 5V modules can damage the ESP32.</text>
-  <text x="50" y="585" class="note">🛠️ Keep A/B polarity correct. Most wiring issues are reversed A/B or SOFAR not in Passive Mode.</text>
+  <rect x="310" y="200" width="40" height="20" rx="4" class="label-bg" />
+  <text x="330" y="214" text-anchor="middle" class="wire-label rx-label">RX</text>
+
+  <rect x="340" y="270" width="60" height="20" rx="4" class="label-bg" />
+  <text x="370" y="284" text-anchor="middle" class="wire-label ctrl-label">GPIO5</text>
+
+  <rect x="310" y="335" width="50" height="20" rx="4" class="label-bg" />
+  <text x="335" y="349" text-anchor="middle" class="wire-label pwr-label">3.3V</text>
+
+  <rect x="310" y="430" width="50" height="20" rx="4" class="label-bg" />
+  <text x="335" y="444" text-anchor="middle" class="wire-label gnd-label">GND</text>
+
+  <rect x="660" y="435" width="25" height="20" rx="4" class="label-bg" />
+  <text x="673" y="449" text-anchor="middle" class="wire-label bus-label">A</text>
+
+  <rect x="660" y="460" width="25" height="20" rx="4" class="label-bg" />
+  <text x="673" y="474" text-anchor="middle" class="wire-label bus-label">B</text>
+
+  <!-- ============ NOTES ============ -->
+  <rect x="50" y="560" width="860" height="50" rx="8" fill="#0D1A28" stroke="#1A2A40" stroke-width="1" />
+  <text x="65" y="580" class="note">⚡ GPIO5 drijft zowel DE als RE — de MAX3485 schakelt automatisch tussen zenden en ontvangen.</text>
+  <text x="65" y="598" class="note">🔋 Gebruik een 3.3V MAX3485 module · 🛠️ A/B niet omdraaien · ⚠️ SOFAR moet in Passive Mode staan</text>
 </svg>

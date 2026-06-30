@@ -50,10 +50,17 @@ class SofarME3000SPConfigFlow(ConfigFlow, domain=DOMAIN):
                     errors[key] = f"Must be a valid entity ID (sensor.xxx, select.xxx, or number.xxx)"
 
             if not errors:
-                return self.async_create_entry(
-                    title="SOFAR ME3000SP Controller",
-                    data=user_input,
-                )
+                # Check for duplicate entries with the same SOFAR mode entity
+                mode_entity = user_input[CONF_SOFAR_MODE_ENTITY]
+                for existing_entry in self._async_current_entries():
+                    if existing_entry.data.get(CONF_SOFAR_MODE_ENTITY) == mode_entity:
+                        errors[CONF_SOFAR_MODE_ENTITY] = "already_configured"
+                        break
+                else:
+                    return self.async_create_entry(
+                        title="SOFAR ME3000SP Controller",
+                        data=user_input,
+                    )
 
         # Build the form
         data_schema = vol.Schema(

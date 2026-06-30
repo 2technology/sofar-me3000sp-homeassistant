@@ -22,7 +22,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 
-from .number import _get_number_entity_id
+from .number import _get_number_helper
 
 from .const import (
     BALANCE_HOLD_SECONDS,
@@ -105,14 +105,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    # Deregister services
-    for service in ("set_mode", "set_charge_rate", "set_discharge_rate"):
-        if hass.services.has_service(DOMAIN, service):
-            hass.services.async_remove(DOMAIN, service)
-
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
+        # Only remove services if no other entries remain
+        remaining = hass.data.get(DOMAIN, {})
+        if not remaining:
+            for service in ("set_mode", "set_charge_rate", "set_discharge_rate"):
+                if hass.services.has_service(DOMAIN, service):
+                    hass.services.async_remove(DOMAIN, service)
     return unload_ok
 
 
@@ -135,12 +136,7 @@ def _get_entity_str(hass: HomeAssistant, entity_id: str, default=""):
     return str(state.state)
 
 
-def _get_number_helper(hass: HomeAssistant, entry_id: str, helper_id: str, default: float) -> float:
-    """Get value of a number helper, falling back to default if not found."""
-    entity_id = _get_number_entity_id(hass, entry_id, helper_id)
-    if entity_id is None:
-        return default
-    return _get_entity_state(hass, entity_id, default)
+
 
 
 async def _setup_automation(hass: HomeAssistant, entry: ConfigEntry):

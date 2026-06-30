@@ -3,7 +3,7 @@
 > **HACS-compatible Home Assistant integratie voor slimme batterij-aansturing**
 > Gebaseerd op externe meetbronnen (slimme meter + PV), niet op interne Sofar CT-klemmen.
 
-[![Version](https://img.shields.io/badge/version-1.1.5-green)](#)
+[![Version](https://img.shields.io/badge/version-1.1.6-green)](#)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange)](#)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
 
@@ -145,7 +145,7 @@ De wizard vraagt je om deze entities te selecteren:
 De integratie maakt automatisch aan:
 - **9 sensors** (export, import, netto, surplus, deficit, huislast, PV, flow direction, visual summary)
 - **6 binary sensors** (charging, discharging, exporting, importing, balanced, alarm)
-- **8 tunable drempels** (export start, import start, PV min, balance, margins, SOC limits)
+- **11 tunable drempels** (export start, import start, PV min, balance, margins, SOC limits)
 - **Interne automation logica** (charge/discharge/auto/standby/force-charge)
 - **3 services** (set_mode, set_charge_rate, set_discharge_rate)
 
@@ -184,7 +184,13 @@ Als je liever geen custom integration gebruikt:
 
 De SOFAR heeft een ESP32 + MAX3485 RS485-module nodig om write-commands te ontvangen.
 
-### Hardware aansluiten
+
+### Hardware aansluitschema
+
+![SOFAR hardware aansluitschema](/assets/hardware-wiring-diagram.svg)
+
+<details>
+<summary>Tekstversie (voor copy/paste)</summary>
 
 ```text
 ESP32              MAX3485           SOFAR 485s
@@ -196,6 +202,13 @@ GND          ----> GND
                     A  ------------>  A (485s poort)
                     B  ------------>  B (485s poort)
 ```
+
+</details>
+
+> ⚡ **GPIO5** drijft zowel **DE** als **RE**. Hierdoor schakelt de MAX3485 automatisch tussen TX en RX.  
+> 🔋 Gebruik een **3.3V MAX3485-module**. Een 5V-module kan de ESP32 beschadigen.
+
+
 
 ### Firmware flashen
 
@@ -269,7 +282,7 @@ Vereist alleen Mushroom Cards.
 
 ## Tuning en aanpassen
 
-Na installatie krijg je 8 tunable drempels die je via de UI kunt aanpassen:
+Na installatie krijg je 11 tunable drempels die je via de UI kunt aanpassen:
 
 | Helper | Default | Doel |
 |---|---:|---|
@@ -281,6 +294,9 @@ Na installatie krijg je 8 tunable drempels die je via de UI kunt aanpassen:
 | Discharge Margin W | 250 W | Veiligheidsmarge bij ontladen |
 | SOC Max Charge | 95 % | Stop laden boven dit % |
 | SOC Min Discharge | 35 % | Stop ontladen onder dit % |
+| SOC Force Charge | 20 % | Force-charge start onder dit % |
+| SOC Force Charge Target | 50 % | Force-charge stopt boven dit % |
+| Force Charge Rate | 1500 W | Vermogen tijdens force-charge |
 
 > Startwaarden zijn conservatief. Pas ze pas aan na een paar dagen observatie.
 

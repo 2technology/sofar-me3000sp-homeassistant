@@ -454,7 +454,7 @@ automation:
   - id: sofar_force_charge_low_soc
     alias: "🪫 SOFAR: Force Charge bij kritisch lage SOC"
     description: "Laad batterij ongeacht PV/export als SOC onder drempel zakt"
-    mode: single
+    mode: restart
     trigger:
       - platform: numeric_state
         entity_id: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc

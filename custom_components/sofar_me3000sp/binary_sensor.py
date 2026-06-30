@@ -26,16 +26,8 @@ from .const import (
     NUMBER_BALANCE_W,
 )
 from .entity import _get_device_info
-from .number import _get_number_entity_id
+from .number import _get_number_helper
 from .sensor import _get_float, _get_str
-
-
-def _get_number_helper(hass: HomeAssistant, entry_id: str, helper_id: str, default: float) -> float:
-    """Get value of a number helper, falling back to default if not found."""
-    entity_id = _get_number_entity_id(hass, entry_id, helper_id)
-    if entity_id is None:
-        return default
-    return _get_float(hass, entity_id)
 
 
 async def async_setup_entry(
@@ -69,7 +61,7 @@ class SofarBinarySensor(BinarySensorEntity):
         self._hass = hass
         self._attr_is_on = False
         self._attr_available = False
-        self._attr_device_info = _get_device_info(entry, hass)
+        self._attr_device_info = _get_device_info(entry)
 
     async def async_added_to_hass(self) -> None:
         data = self._entry.data
