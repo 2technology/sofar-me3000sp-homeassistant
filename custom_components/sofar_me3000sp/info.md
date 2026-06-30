@@ -16,10 +16,11 @@ De SOFAR wordt behandeld als pure **actuator** — de beslissingen worden in Hom
 - **6 binary sensors**: charging, discharging, exporting, importing, balanced, alarm
 - **8 tunable drempels**: pas aan via de UI zonder code te wijzigen
 - **Interne automation logica**: charge/discharge/auto/standby met hysterese
-- **Force charge**: batterij besermen bij kritisch lage SOC
+- **Force charge**: batterij beschermen bij kritisch lage SOC
 - **Alarm handling**: automatisch standby bij fault
 - **3 services**: handmatige mode/rate controle via Developer Tools
 - **NL + EN translations**
+- **Mermaid architectuurdiagram** in README en docs
 
 ## Vereisten
 

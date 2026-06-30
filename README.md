@@ -3,8 +3,8 @@
 > **HACS-compatible Home Assistant integratie voor slimme batterij-aansturing**
 > Gebaseerd op externe meetbronnen (slimme meter + PV), niet op interne Sofar CT-klemmen.
 
-[![Version](https://img.shields.io/badge/version-1.1.1-green)](#)
-[![HACS](https://img.shields.io/badge/HACS-Default-blue)](#)
+[![Version](https://img.shields.io/badge/version-1.1.3-green)](#)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange)](#)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
 
 ---
@@ -50,26 +50,38 @@ Home Assistant beslist op basis van je slimme meter en PV-opbrengst, en stuurt d
 
 ### Schematische opstelling
 
-Dit is de architectuur in mijn woning:
+```mermaid
+flowchart LR
+    SM[🛠️ Slimme meter] --|export/import kW| --> HA[🏠 Home Assistant]
+    PV[☀️ PV omvormer] --|power W| --> HA
+    HA --|mode/rate| --> ESP[⚡ ESP32 + MAX3485]
+    ESP --|Modbus 0x42| --> SOFAR[🔋 SOFAR ME3000SP]
+    SOFAR <-->|DC| BAT[🔋 Batterij]
+    SOFAR -->|SOC / fault / status| HA
+```
+
+Dit is de fysieke opstelling in mijn woning:
 
 ![SOFAR ME3000SP architectuur](/assets/sofar-me3000sp-architecture.png)
 
-```text
-Slimme meter  --(export/import kW)-->  Home Assistant  --(mode/rate)-->  ESP32 + MAX3485  --(Modbus 0x42)-->  SOFAR ME3000SP  <--(DC)-->  Batterij
-                                             ^                                                                           |
-                                             |                                                                           |
-PV omvormer  --(power W)---------------------+                                                                  SOC / fault / status
-```
+**Stroom van informatie:**
+
+1. **Slimme meter** meldt realtime export/import in kW
+2. **PV omvormer** meldt realtime PV-productie in W
+3. **Home Assistant** combineret beide en beslist: charge / discharge / auto / standby
+4. **ESP32 + MAX3485** zet dat om naar Modbus RTU commands
+5. **SOFAR ME3000SP** voert het commando uit en stuurt batterij aan
+6. **Batterij** stuurt SOC, fault en status terug naar Home Assistant
 
 ### Componenten
 
 | Component | Rol |
 |---|---|
+| **Slimme meter** | De waarheid over import/export |
+| **PV omvormer** | De bron van de actuele PV-opbrengst |
 | **Home Assistant** | Het brein: leest slimme meter + PV, beslist, stuurt de SOFAR |
 | **ESP32 + MAX3485** | De brug tussen HA en de SOFAR via Modbus RS485 |
 | **SOFAR ME3000SP** | De actuator: laadt/ontlaadt de batterij op commando |
-| **Slimme meter** | De waarheid over import/export |
-| **PV omvormer** | De bron van de actuele PV-opbrengst |
 | **Batterij** | Energiebuffer die via de SOFAR wordt aangestuurd |
 
 ---

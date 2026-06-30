@@ -155,7 +155,6 @@ async def _setup_automation(hass: HomeAssistant, entry: ConfigEntry):
     tracked = [export_entity, import_entity, pv_entity, soc_entity, fault_entity]
     store = hass.data[DOMAIN][entry.entry_id]
 
-    @callback
     async def _on_state_change(event):
         """Handle state changes and run automation logic."""
         await _run_automation(hass, entry, store)
@@ -164,7 +163,7 @@ async def _setup_automation(hass: HomeAssistant, entry: ConfigEntry):
     async_track_state_change_event(hass, tracked, _on_state_change)
 
     # Also run periodically as a safety net
-    async def _periodic_check(now):
+    async def _periodic_check(_now):
         await _run_automation(hass, entry, store)
 
     async_track_time_interval(hass, _periodic_check, timedelta(seconds=60))
