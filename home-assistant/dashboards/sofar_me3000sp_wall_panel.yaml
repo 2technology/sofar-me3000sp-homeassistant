@@ -2,6 +2,8 @@
 # Vereist: HACS + Mushroom Cards
 # Optioneel maar aanbevolen: card-mod voor de kleuraccenten
 # Zonder card-mod werken de kleurranden en glow niet, maar de kaart blijft functioneel.
+# Ontworpen voor de SOFAR ME3000SP Controller custom integration (HACS/handmatig).
+# Bij gebruik van de YAML package moet je de sensor/helper-namen handmatig aanpassen.
 # Gebruik: plak de inhoud onder `cards:` of als sectie in een YAML-dashboard.
 
 wall_panel:

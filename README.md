@@ -46,20 +46,31 @@ Deze integratie gebruikt:
 
 ## Hoe werkt het?
 
-```mermaid
-flowchart LR
-    SM["Slimme meter
-    export/import kW"] -->|realtime data| HA["Home Assistant
-    integratie + automations"]
-    SMA["PV omvormer
-    power W"] -->|realtime data| HA
-    HA -->|mode + charge/discharge rate| ESP["ESP32 + MAX3485
-    ESPHome"]
-    ESP -->|Modbus 0x42| SOFAR["SOFAR ME3000SP"]
-    SOFAR -->|SOC, faults, status| HA
+Home Assistant beslist op basis van je slimme meter en PV-opbrengst, en stuurt de SOFAR via ESPHome aan als een remote-gecontroleerde actuator.
+
+### Schematische opstelling
+
+Dit is de architectuur in mijn woning:
+
+![SOFAR ME3000SP architectuur](/assets/sofar-me3000sp-architecture.png)
+
+```text
+Slimme meter  --(export/import kW)-->  Home Assistant  --(mode/rate)-->  ESP32 + MAX3485  --(Modbus 0x42)-->  SOFAR ME3000SP  <--(DC)-->  Batterij
+                                             ^                                                                           |
+                                             |                                                                           |
+PV omvormer  --(power W)---------------------+                                                                  SOC / fault / status
 ```
 
-**In één zin:** Home Assistant beslist op basis van je slimme meter en PV-opbrengst, en stuurt de SOFAR via ESPHome aan als een remote-gecontroleerde actuator.
+### Componenten
+
+| Component | Rol |
+|---|---|
+| **Home Assistant** | Het brein: leest slimme meter + PV, beslist, stuurt de SOFAR |
+| **ESP32 + MAX3485** | De brug tussen HA en de SOFAR via Modbus RS485 |
+| **SOFAR ME3000SP** | De actuator: laadt/ontlaadt de batterij op commando |
+| **Slimme meter** | De waarheid over import/export |
+| **PV omvormer** | De bron van de actuele PV-opbrengst |
+| **Batterij** | Energiebuffer die via de SOFAR wordt aangestuurd |
 
 ---
 
@@ -191,10 +202,13 @@ Er zijn twee dashboard-varianten beschikbaar:
 ```text
 home-assistant/dashboards/sofar_me3000sp_wall_panel.yaml
 ```
+
 Vereist:
 - [HACS](https://hacs.xyz/)
 - [Mushroom Cards](https://github.com/piitaya/lovelace-mushroom)
 - Optioneel: [card-mod](https://github.com/thomasloven/lovelace-card-mod) (voor kleuraccenten)
+
+> **Belangrijk:** de dashboards zijn ontworpen voor de **HACS custom integration**. Gebruik je de YAML package, dan moet je de sensor- en helper-namen handmatig matchen.
 
 **Hoe toe te voegen:**
 1. Open je dashboard

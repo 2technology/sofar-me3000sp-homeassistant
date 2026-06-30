@@ -1,6 +1,12 @@
 # Aanpassen voor jouw setup
 
-Niet iedereen heeft exact dezelfde slimme meter of PV-omvormer. Hier lees je hoe je de package aanpast.
+Niet iedereen heeft exact dezelfde slimme meter of PV-omvormer. Hier lees je hoe je de integratie of package aanpast.
+
+## HACS integratie
+
+Als je de HACS custom integration gebruikt, pas je entity-namen aan tijdens de setup-wizard. Daarna kun je de drempels tunen via de number-helpers in de UI.
+
+## YAML package
 
 ## Mijn PV-omvormer is geen SMA
 
@@ -39,18 +45,18 @@ Vervang de entity-namen in `sofar_me3000sp.yaml` met deze waarden.
 
 ## Ik wil andere drempels
 
-De standaard drempels zijn conservatief. Na installatie krijg je helpers die je via de UI kunt aanpassen:
+De standaard drempels zijn conservatief. Na installatie krijg je number-helpers die je via de UI kunt aanpassen:
 
-- `input_number.sofar_export_start_w` — wanneer start laden? (default: 400W)
-- `input_number.sofar_import_start_w` — wanneer start ontladen? (default: 300W)
-- `input_number.sofar_pv_min_w` — minimale PV voor laden (default: 700W)
-- `input_number.sofar_balance_w` — wanneer is de flow "in balans"? (default: 150W)
-- `input_number.sofar_charge_margin_w` — marge bij laden (default: 150W)
-- `input_number.sofar_discharge_margin_w` — marge bij ontladen (default: 250W)
-- `input_number.sofar_soc_max_charge` — stop laden boven dit % (default: 95%)
-- `input_number.sofar_soc_min_discharge` — stop ontladen onder dit % (default: 35%)
+- `number.sofar_me3000sp_export_start_w` — wanneer start laden? (default: 400W)
+- `number.sofar_me3000sp_import_start_w` — wanneer start ontladen? (default: 300W)
+- `number.sofar_me3000sp_pv_min_w` — minimale PV voor laden (default: 700W)
+- `number.sofar_me3000sp_balance_w` — wanneer is de flow "in balans"? (default: 150W)
+- `number.sofar_me3000sp_charge_margin_w` — marge bij laden (default: 150W)
+- `number.sofar_me3000sp_discharge_margin_w` — marge bij ontladen (default: 250W)
+- `number.sofar_me3000sp_soc_max_charge` — stop laden boven dit % (default: 95%)
+- `number.sofar_me3000sp_soc_min_discharge` — stop ontladen onder dit % (default: 35%)
 
-Pas deze aan via **Developer Tools → States** of via je dashboard.
+Pas deze aan via **Settings → Devices & Services → Entities** of via je dashboard.
 
 ## Ik wil 's nachts niet ontladen
 

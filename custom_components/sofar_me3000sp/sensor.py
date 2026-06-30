@@ -30,6 +30,7 @@ from .const import (
     SENSOR_SMA_PV_POWER,
     SENSOR_VISUAL_SUMMARY,
 )
+from .entity import _get_device_info
 
 _INVALID_STATES = ("unavailable", "unknown", "none", "")
 
@@ -90,6 +91,7 @@ class SofarDerivedSensor(SensorEntity):
         self._hass = hass
         self._attr_native_value = 0.0
         self._attr_available = False
+        self._attr_device_info = _get_device_info(entry)
 
     async def async_added_to_hass(self) -> None:
         data = self._entry.data
@@ -140,6 +142,7 @@ class SofarFlowDirectionSensor(SensorEntity):
         self._hass = hass
         self._attr_native_value = "unknown"
         self._attr_available = False
+        self._attr_device_info = _get_device_info(entry)
 
     async def async_added_to_hass(self) -> None:
         data = self._entry.data
@@ -190,6 +193,7 @@ class SofarVisualSummarySensor(SensorEntity):
         self._hass = hass
         self._attr_native_value = ""
         self._attr_available = False
+        self._attr_device_info = _get_device_info(entry)
 
     async def async_added_to_hass(self) -> None:
         data = self._entry.data

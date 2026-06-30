@@ -22,6 +22,8 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 
+from .number import _get_number_entity_id
+
 from .const import (
     BALANCE_HOLD_SECONDS,
     CHARGE_HOLD_SECONDS,
@@ -88,7 +90,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Start automation logic after HA is fully started
     async def _start_automation(_event=None):
         _LOGGER.info("SOFAR ME3000SP automation started")
-        _setup_automation(hass, entry)
+        await _setup_automation(hass, entry)
 
     if hass.is_running:
         await _start_automation()
@@ -130,13 +132,15 @@ def _get_entity_str(hass: HomeAssistant, entity_id: str, default=""):
     return str(state.state)
 
 
-def _get_number_helper(hass: HomeAssistant, helper_id: str, default: float) -> float:
-    """Get value of a number helper, falling back to default."""
-    val = _get_entity_state(hass, f"number.{helper_id}", default)
-    return val if val > 0 else default
+def _get_number_helper(hass: HomeAssistant, entry_id: str, helper_id: str, default: float) -> float:
+    """Get value of a number helper, falling back to default if not found."""
+    entity_id = _get_number_entity_id(hass, entry_id, helper_id)
+    if entity_id is None:
+        return default
+    return _get_entity_state(hass, entity_id, default)
 
 
-def _setup_automation(hass: HomeAssistant, entry: ConfigEntry):
+async def _setup_automation(hass: HomeAssistant, entry: ConfigEntry):
     """Set up internal automation logic using state change listeners."""
     data = entry.data
     export_entity = data[CONF_EXPORT_ENTITY]
@@ -185,14 +189,14 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
     deficit_w = max(0, -net_w)
 
     # Read tunable thresholds
-    export_start = _get_number_helper(hass, NUMBER_EXPORT_START_W, DEFAULT_EXPORT_START_W)
-    import_start = _get_number_helper(hass, NUMBER_IMPORT_START_W, DEFAULT_IMPORT_START_W)
-    pv_min = _get_number_helper(hass, NUMBER_PV_MIN_W, DEFAULT_PV_MIN_W)
-    balance_w = _get_number_helper(hass, NUMBER_BALANCE_W, DEFAULT_BALANCE_W)
-    charge_margin = _get_number_helper(hass, NUMBER_CHARGE_MARGIN_W, DEFAULT_CHARGE_MARGIN_W)
-    discharge_margin = _get_number_helper(hass, NUMBER_DISCHARGE_MARGIN_W, DEFAULT_DISCHARGE_MARGIN_W)
-    soc_max_charge = _get_number_helper(hass, NUMBER_SOC_MAX_CHARGE, DEFAULT_SOC_MAX_CHARGE)
-    soc_min_discharge = _get_number_helper(hass, NUMBER_SOC_MIN_DISCHARGE, DEFAULT_SOC_MIN_DISCHARGE)
+    export_start = _get_number_helper(hass, entry.entry_id, NUMBER_EXPORT_START_W, DEFAULT_EXPORT_START_W)
+    import_start = _get_number_helper(hass, entry.entry_id, NUMBER_IMPORT_START_W, DEFAULT_IMPORT_START_W)
+    pv_min = _get_number_helper(hass, entry.entry_id, NUMBER_PV_MIN_W, DEFAULT_PV_MIN_W)
+    balance_w = _get_number_helper(hass, entry.entry_id, NUMBER_BALANCE_W, DEFAULT_BALANCE_W)
+    charge_margin = _get_number_helper(hass, entry.entry_id, NUMBER_CHARGE_MARGIN_W, DEFAULT_CHARGE_MARGIN_W)
+    discharge_margin = _get_number_helper(hass, entry.entry_id, NUMBER_DISCHARGE_MARGIN_W, DEFAULT_DISCHARGE_MARGIN_W)
+    soc_max_charge = _get_number_helper(hass, entry.entry_id, NUMBER_SOC_MAX_CHARGE, DEFAULT_SOC_MAX_CHARGE)
+    soc_min_discharge = _get_number_helper(hass, entry.entry_id, NUMBER_SOC_MIN_DISCHARGE, DEFAULT_SOC_MIN_DISCHARGE)
 
     # --- ALARM: force standby ---
     if fault not in (STATE_OK, STATE_UNAVAILABLE, STATE_UNKNOWN, ""):

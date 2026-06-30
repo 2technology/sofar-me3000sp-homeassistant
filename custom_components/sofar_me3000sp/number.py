@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -26,6 +26,7 @@ from .const import (
     NUMBER_SOC_MAX_CHARGE,
     NUMBER_SOC_MIN_DISCHARGE,
 )
+from .entity import _get_device_info
 
 
 async def async_setup_entry(
@@ -47,6 +48,13 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+def _get_number_entity_id(hass: HomeAssistant, entry_id: str, unique_id: str) -> str | None:
+    """Find entity_id for a number helper by its unique_id within an entry."""
+    store = hass.data.setdefault(DOMAIN, {}).setdefault(entry_id, {})
+    mapping = store.setdefault("number_entity_ids", {})
+    return mapping.get(f"{DOMAIN}_{unique_id}")
+
+
 class SofarNumberHelper(NumberEntity):
     """A number helper for tuning automation thresholds."""
 
@@ -65,6 +73,8 @@ class SofarNumberHelper(NumberEntity):
         initial_value: float,
     ) -> None:
         """Initialize."""
+        self._entry = entry
+        self._base_unique_id = unique_id
         self._attr_unique_id = f"{DOMAIN}_{unique_id}"
         self._attr_name = name
         self._attr_icon = icon
@@ -72,6 +82,14 @@ class SofarNumberHelper(NumberEntity):
         self._attr_native_max_value = native_max_value
         self._attr_native_step = native_step
         self._attr_native_value = initial_value
+        self._attr_device_info = _get_device_info(entry)
+
+    async def async_added_to_hass(self) -> None:
+        """Register entity_id mapping after entity is created."""
+        await super().async_added_to_hass()
+        store = self.hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
+        mapping = store.setdefault("number_entity_ids", {})
+        mapping[self._attr_unique_id] = self.entity_id
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

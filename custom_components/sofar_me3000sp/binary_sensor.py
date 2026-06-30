@@ -23,9 +23,8 @@ from .const import (
     CONF_SOFAR_MODE_ENTITY,
     DOMAIN,
 )
+from .entity import _get_device_info
 from .sensor import _get_float, _get_str
-
-_INVALID_STATES = ("unavailable", "unknown", "none", "")
 
 
 async def async_setup_entry(
@@ -59,6 +58,7 @@ class SofarBinarySensor(BinarySensorEntity):
         self._hass = hass
         self._attr_is_on = False
         self._attr_available = False
+        self._attr_device_info = _get_device_info(entry)
 
     async def async_added_to_hass(self) -> None:
         data = self._entry.data
