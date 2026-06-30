@@ -3,9 +3,20 @@
 > **HACS-compatible Home Assistant integratie voor slimme batterij-aansturing**
 > Gebaseerd op externe meetbronnen (slimme meter + PV), niet op interne Sofar CT-klemmen.
 
-[![Version](https://img.shields.io/badge/version-1.1.4-green)](#)
+[![Version](https://img.shields.io/badge/version-1.1.5-green)](#)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange)](#)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
+
+```text
+   ____  ___  _________ _______________  ________  __  _______  ____  __________  ___ 
+  / __ \/ _ \/ ___/ __ \/ ___/ ___/ _ \/ __/ __ \/  |/  / __ \/ __ \/_  __/ _ \/ _ |
+ / /_/ / , _/ /__/ /_/ / /__/ /__/ , _/ _// /_/ / /|_/ / /_/ / /_/ / / / / , _/ __ |
+ \____/ /|_|\___/\____/\___/\___/ /|_|/___/\____/_/  /_/\____/\____/ /_/  /|_|/_/|_|
+                                                                                       
+```
+
+> **Mad Science Lab SOFAR ME3000SP Controller**  
+> Externe-bron-sturing van je batterij-omvormer. Betrouwbaar, tunebaar, visueel.
 
 ---
 

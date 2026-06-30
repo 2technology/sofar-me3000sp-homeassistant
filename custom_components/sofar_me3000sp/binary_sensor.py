@@ -21,10 +21,21 @@ from .const import (
     CONF_SOFAR_DISCHARGE_RATE_ENTITY,
     CONF_SOFAR_FAULT_ENTITY,
     CONF_SOFAR_MODE_ENTITY,
+    DEFAULT_BALANCE_W,
     DOMAIN,
+    NUMBER_BALANCE_W,
 )
 from .entity import _get_device_info
+from .number import _get_number_entity_id
 from .sensor import _get_float, _get_str
+
+
+def _get_number_helper(hass: HomeAssistant, entry_id: str, helper_id: str, default: float) -> float:
+    """Get value of a number helper, falling back to default if not found."""
+    entity_id = _get_number_entity_id(hass, entry_id, helper_id)
+    if entity_id is None:
+        return default
+    return _get_float(hass, entity_id)
 
 
 async def async_setup_entry(
@@ -107,8 +118,9 @@ class SofarBinarySensor(BinarySensorEntity):
             self._attr_available = export_state is not None and import_state is not None
             self._attr_is_on = import_w > export_w
         elif self._sensor_type == "balanced":
+            balance_w = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_BALANCE_W, DEFAULT_BALANCE_W)
             self._attr_available = export_state is not None and import_state is not None
-            self._attr_is_on = abs(export_w - import_w) <= 150
+            self._attr_is_on = abs(export_w - import_w) <= balance_w
         elif self._sensor_type == "alarm":
             self._attr_available = fault_state is not None
             self._attr_is_on = fault not in ("OK", "unavailable", "unknown", "")

@@ -19,7 +19,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
     Platform,
 )
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 
 from .number import _get_number_entity_id
@@ -58,8 +58,11 @@ from .const import (
     NUMBER_CHARGE_MARGIN_W,
     NUMBER_DISCHARGE_MARGIN_W,
     NUMBER_EXPORT_START_W,
+    NUMBER_FORCE_CHARGE_RATE,
     NUMBER_IMPORT_START_W,
     NUMBER_PV_MIN_W,
+    NUMBER_SOC_FORCE_CHARGE,
+    NUMBER_SOC_FORCE_CHARGE_TARGET,
     NUMBER_SOC_MAX_CHARGE,
     NUMBER_SOC_MIN_DISCHARGE,
 )
@@ -196,6 +199,9 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
     discharge_margin = _get_number_helper(hass, entry.entry_id, NUMBER_DISCHARGE_MARGIN_W, DEFAULT_DISCHARGE_MARGIN_W)
     soc_max_charge = _get_number_helper(hass, entry.entry_id, NUMBER_SOC_MAX_CHARGE, DEFAULT_SOC_MAX_CHARGE)
     soc_min_discharge = _get_number_helper(hass, entry.entry_id, NUMBER_SOC_MIN_DISCHARGE, DEFAULT_SOC_MIN_DISCHARGE)
+    soc_force_charge = _get_number_helper(hass, entry.entry_id, NUMBER_SOC_FORCE_CHARGE, DEFAULT_SOC_FORCE_CHARGE)
+    soc_force_charge_target = _get_number_helper(hass, entry.entry_id, NUMBER_SOC_FORCE_CHARGE_TARGET, DEFAULT_SOC_FORCE_CHARGE_TARGET)
+    force_charge_rate = _get_number_helper(hass, entry.entry_id, NUMBER_FORCE_CHARGE_RATE, DEFAULT_FORCE_CHARGE_RATE)
 
     # --- ALARM: force standby ---
     if fault not in (STATE_OK, STATE_UNAVAILABLE, STATE_UNKNOWN, ""):
@@ -203,22 +209,28 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
         return
 
     # --- FORCE CHARGE: critical low SOC ---
-    if soc < DEFAULT_SOC_FORCE_CHARGE and current_mode != MODE_CHARGE:
+    if soc < soc_force_charge:
         if not store.get("force_charge_active"):
             store["force_charge_active"] = True
             store["force_charge_start"] = now
             await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
-            await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], DEFAULT_FORCE_CHARGE_RATE)
-            _LOGGER.info("Force charge started: SOC=%.0f%%", soc)
-        elif now - store.get("force_charge_start", 0) > FORCE_CHARGE_TIMEOUT:
-            store["force_charge_active"] = False
-            await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
-            _LOGGER.warning("Force charge timeout after 4h")
-        elif soc >= DEFAULT_SOC_FORCE_CHARGE_TARGET:
-            store["force_charge_active"] = False
-            await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
-            _LOGGER.info("Force charge complete: SOC=%.0f%%", soc)
+            await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], int(force_charge_rate))
+            _LOGGER.info("Force charge started: SOC=%.0f%% < %.0f%%, rate=%.0fW", soc, soc_force_charge, force_charge_rate)
+        else:
+            elapsed = now - store.get("force_charge_start", now)
+            if soc >= soc_force_charge_target:
+                store["force_charge_active"] = False
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+                _LOGGER.info("Force charge complete: SOC=%.0f%% >= %.0f%%", soc, soc_force_charge_target)
+            elif elapsed > FORCE_CHARGE_TIMEOUT:
+                store["force_charge_active"] = False
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+                _LOGGER.warning("Force charge timeout after %.0fs", FORCE_CHARGE_TIMEOUT)
         return
+    else:
+        if store.get("force_charge_active"):
+            store["force_charge_active"] = False
+            _LOGGER.info("Force charge cleared: SOC=%.0f%% >= %.0f%%", soc, soc_force_charge)
 
     # --- CHARGE: surplus export ---
     if surplus_w > export_start and pv_w > pv_min and soc < soc_max_charge:
@@ -287,7 +299,6 @@ async def _set_number(hass: HomeAssistant, entity_id: str, value: int):
 async def _async_register_services(hass: HomeAssistant, entry: ConfigEntry):
     """Register custom services for manual mode/rate control."""
 
-    @callback
     async def _handle_set_mode(call):
         """Handle set_mode service call."""
         mode = call.data.get("mode", MODE_AUTO)
@@ -297,7 +308,6 @@ async def _async_register_services(hass: HomeAssistant, entry: ConfigEntry):
         await _set_mode(hass, entry.data[CONF_SOFAR_MODE_ENTITY], mode)
         _LOGGER.info("Service set_mode: %s", mode)
 
-    @callback
     async def _handle_set_charge_rate(call):
         """Handle set_charge_rate service call."""
         rate = int(call.data.get("rate", 1500))
@@ -305,7 +315,6 @@ async def _async_register_services(hass: HomeAssistant, entry: ConfigEntry):
         await _set_number(hass, entry.data[CONF_SOFAR_CHARGE_RATE_ENTITY], rate)
         _LOGGER.info("Service set_charge_rate: %dW", rate)
 
-    @callback
     async def _handle_set_discharge_rate(call):
         """Handle set_discharge_rate service call."""
         rate = int(call.data.get("rate", 1500))

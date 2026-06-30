@@ -14,7 +14,7 @@ De SOFAR wordt behandeld als pure **actuator** — de beslissingen worden in Hom
 - **UI-wizard**: selecteer je entities via een formulier — geen YAML
 - **9 template sensors**: export, import, netto, surplus, deficit, huislast, PV, flow direction, visual summary
 - **6 binary sensors**: charging, discharging, exporting, importing, balanced, alarm
-- **8 tunable drempels**: pas aan via de UI zonder code te wijzigen
+- **11 tunable drempels**: pas aan via de UI zonder code te wijzigen, inclusief force-charge
 - **Interne automation logica**: charge/discharge/auto/standby met hysterese
 - **Force charge**: batterij beschermen bij kritisch lage SOC
 - **Alarm handling**: automatisch standby bij fault

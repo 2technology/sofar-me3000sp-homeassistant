@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.1.5 — 2026-06-29
+
+### Toegevoegd
+- **3 extra tunebare number helpers** voor force-charge:
+  - `number.sofar_me3000sp_soc_force_charge` (default 20%)
+  - `number.sofar_me3000sp_soc_force_charge_target` (default 50%)
+  - `number.sofar_me3000sp_force_charge_rate` (default 1500W)
+- Visueel indrukwekkend README ASCII-banner header
+- SVG hardware aansluitschema verbeterd: glow, gradients, kleurgecodeerde draden, grid-achtergrond
+
+### Opgelost
+- **Kritieke bug in `number.py`**: constructor gebruikte undefined `hass` variabele — zou crash geven bij integratie-lading
+- **Kritieke bug in `__init__.py`**: force-charge kon in oneindige timeout-lus blijven hangen; nu robuuste target/timeout/clear logica
+- Hardcoded `150W` balance drempel in `sensor.py` en `binary_sensor.py` vervangen door tunebare `number.sofar_me3000sp_balance_w`
+- `sensor.py`: `house_load` availability controleert nu ook PV-bron
+- Async service handlers hebben geen verkeerde `@callback` decorator meer
+- `entity.py`: correct type hint voor `hass` parameter
+
+### Gewijzigd
+- `info.md` feature count geüpdatet naar 11 tunebare drempels
+- `AANPASSEN.md` documenteert nu ook force-charge helpers
+- Translations `en.json` + `nl.json` uitgebreid met nieuwe number entities
+
 ## v1.1.4 — 2026-06-29
 
 ### Toegevoegd

@@ -26,6 +26,11 @@ DEFAULT_SOC_FORCE_CHARGE_TARGET = 50
 DEFAULT_FORCE_CHARGE_RATE = 1500
 DEFAULT_MAX_RATE = 3000
 
+# Number helper names for force charge tuning
+NUMBER_SOC_FORCE_CHARGE = "sofar_soc_force_charge"
+NUMBER_SOC_FORCE_CHARGE_TARGET = "sofar_soc_force_charge_target"
+NUMBER_FORCE_CHARGE_RATE = "sofar_force_charge_rate"
+
 # Timing
 CHARGE_HOLD_SECONDS = 300  # 5 min
 DISCHARGE_HOLD_SECONDS = 300

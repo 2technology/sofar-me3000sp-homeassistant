@@ -19,7 +19,9 @@ from .const import (
     CONF_PV_ENTITY,
     CONF_SOFAR_FAULT_ENTITY,
     CONF_SOFAR_MODE_ENTITY,
+    DEFAULT_BALANCE_W,
     DOMAIN,
+    NUMBER_BALANCE_W,
     SENSOR_FLOW_DIRECTION,
     SENSOR_GRID_DEFICIT_POWER,
     SENSOR_GRID_EXPORT_POWER,
@@ -31,6 +33,15 @@ from .const import (
     SENSOR_VISUAL_SUMMARY,
 )
 from .entity import _get_device_info
+from .number import _get_number_entity_id
+
+
+def _get_number_helper(hass: HomeAssistant, entry_id: str, helper_id: str, default: float) -> float:
+    """Get value of a number helper, falling back to default if not found."""
+    entity_id = _get_number_entity_id(hass, entry_id, helper_id)
+    if entity_id is None:
+        return default
+    return _get_float(hass, entity_id)
 
 _INVALID_STATES = ("unavailable", "unknown", "none", "")
 
@@ -115,6 +126,14 @@ class SofarDerivedSensor(SensorEntity):
             and import_state is not None and import_state.state not in _INVALID_STATES
         )
 
+        if self._sensor_type == "house_load":
+            self._attr_available = (
+                self._attr_available
+                and pv_state is not None and pv_state.state not in _INVALID_STATES
+            )
+        elif self._sensor_type == "pv":
+            self._attr_available = pv_state is not None and pv_state.state not in _INVALID_STATES
+
         export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
         import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
         pv_w = _get_float(self._hass, data[CONF_PV_ENTITY])
@@ -133,7 +152,6 @@ class SofarDerivedSensor(SensorEntity):
         elif self._sensor_type == "house_load":
             self._attr_native_value = round(pv_w + import_w - export_w)
         elif self._sensor_type == "pv":
-            self._attr_available = pv_state is not None and pv_state.state not in _INVALID_STATES
             self._attr_native_value = round(pv_w)
 
 
@@ -182,6 +200,8 @@ class SofarFlowDirectionSensor(SensorEntity):
         export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
         import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
 
+        balance_w = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_BALANCE_W, DEFAULT_BALANCE_W)
+
         if fault not in ("OK", "unavailable", "unknown", ""):
             self._attr_native_value = "alarm"
         elif mode == "standby":
@@ -190,7 +210,7 @@ class SofarFlowDirectionSensor(SensorEntity):
             self._attr_native_value = "charging"
         elif mode == "discharge":
             self._attr_native_value = "discharging"
-        elif abs(export_w - import_w) < 150:
+        elif abs(export_w - import_w) < balance_w:
             self._attr_native_value = "balanced"
         elif export_w > import_w:
             self._attr_native_value = "exporting"

@@ -55,6 +55,9 @@ De standaard drempels zijn conservatief. Na installatie krijg je number-helpers 
 - `number.sofar_me3000sp_discharge_margin_w` — marge bij ontladen (default: 250W)
 - `number.sofar_me3000sp_soc_max_charge` — stop laden boven dit % (default: 95%)
 - `number.sofar_me3000sp_soc_min_discharge` — stop ontladen onder dit % (default: 35%)
+- `number.sofar_me3000sp_soc_force_charge` — SOC waaronder force-charge start (default: 20%)
+- `number.sofar_me3000sp_soc_force_charge_target` — SOC waarop force-charge stopt (default: 50%)
+- `number.sofar_me3000sp_force_charge_rate` — vermogen tijdens force-charge (default: 1500W)
 
 Pas deze aan via **Settings → Devices & Services → Entities** of via je dashboard.
 

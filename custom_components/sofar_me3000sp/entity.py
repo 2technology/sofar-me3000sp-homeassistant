@@ -9,7 +9,7 @@ from homeassistant.loader import async_get_integration
 from .const import DOMAIN
 
 
-def _get_device_info(entry: ConfigEntry, hass) -> DeviceInfo:
+def _get_device_info(entry: ConfigEntry, hass: HomeAssistant) -> DeviceInfo:
     """Return shared device info for all entities in this integration."""
     integration = async_get_integration(hass, DOMAIN)
     sw_version = integration.version if integration else "unknown"

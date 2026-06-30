@@ -16,5 +16,18 @@
         }
       }
     }
+  },
+  "entity": {
+    "number": {
+      "sofar_me3000sp_sofar_soc_force_charge": {
+        "name": "SOC Force Charge %"
+      },
+      "sofar_me3000sp_sofar_soc_force_charge_target": {
+        "name": "SOC Force Charge Target %"
+      },
+      "sofar_me3000sp_sofar_force_charge_rate": {
+        "name": "Force Charge Rate W"
+      }
+    }
   }
 }
