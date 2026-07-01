@@ -116,11 +116,9 @@ class SofarNumberHelper(NumberEntity):
         store = self.hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
         mapping = store.setdefault("number_entity_ids", {})
         mapping[self._attr_unique_id] = self.entity_id
-        if (last := await self.async_get_last_state()) is not None:
-            try:
-                self._attr_native_value = float(last.state)
-            except (ValueError, TypeError):
-                pass
+        # State restoration is handled by initial_value in __init__.
+        # HA NumberEntity with restore_value=true in ESPHome handles its own restore;
+        # these HA-side helpers use the initial_value default on each HA restart.
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

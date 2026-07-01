@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.9 — 2026-06-30
+
+### Bugfix
+- **`AttributeError: async_get_last_state`** (11 errors) — `NumberEntity` heeft ook geen `async_get_last_state()`. De restore-poging verwijderd; number helpers gebruiken nu gewoon hun `initial_value` uit `__init__`. Dat is betrouwbaar en voldoende voor tunebare drempels.
+
 ## v1.1.8 — 2026-06-30
 
 ### 🔴 Kritieke bugfixes (live HA fouten opgelost)
