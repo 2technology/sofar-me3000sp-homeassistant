@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.0 — 2026-06-30
+
+### Verbeterd
+- **Catch-all logica**: als geen charge/discharge/balance/force-charge/alarmsituatie actief is en de inverter staat op standby, wordt deze automatisch naar `auto` gezet. Voorkomt dat de inverter in standby blijft hangen na een eerdere alarm-trigger die al opgelost is.
+- Gefundeerd in live observatie: surplus 273 W maar mode bleef op standby omdat geen enkele drempel triggerde.
+
 ## v1.1.9 — 2026-06-30
 
 ### Bugfix

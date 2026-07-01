@@ -3,7 +3,7 @@
 > **HACS-compatible Home Assistant integratie voor slimme batterij-aansturing**
 > Gebaseerd op externe meetbronnen (slimme meter + PV), niet op interne Sofar CT-klemmen.
 
-[![Version](https://img.shields.io/badge/version-1.1.9-green)](#)
+[![Version](https://img.shields.io/badge/version-1.2.0-green)](#)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange)](#)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
 

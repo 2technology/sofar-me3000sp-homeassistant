@@ -271,6 +271,14 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
     else:
         store["balance_hold_start"] = None
 
+    # --- CATCH-ALL: return to auto if in standby without active condition ---
+    # If we reach here, no charge/discharge/balance condition is met.
+    # If the inverter is in standby (e.g. left over from a previous alarm),
+    # return it to auto so it can self-balance.
+    if current_mode == MODE_STANDBY and not store.get("force_charge_active"):
+        await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+        _LOGGER.info("Catch-all: standby → auto (no active condition, SOC=%.0f%%, surplus=%.0fW)", soc, surplus_w)
+
 
 async def _set_mode(hass: HomeAssistant, entity_id: str, mode: str):
     """Set the inverter mode via select entity."""
