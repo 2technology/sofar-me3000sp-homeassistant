@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.1 — 2026-07-01
+
+### Bugfix
+- **`NameError: CONF_SOFAR_SOC_ENTITY`** — de decision reason sensor crashte bij opstarten omdat `CONF_SOFAR_SOC_ENTITY` en 16 andere consts niet geïmporteerd waren in `sensor.py`. Alle ontbrekende imports toegevoegd.
+
 ## v1.3.0 — 2026-07-01
 
 ### Toegevoegd
