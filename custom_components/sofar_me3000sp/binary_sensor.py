@@ -115,4 +115,4 @@ class SofarBinarySensor(BinarySensorEntity):
             self._attr_is_on = abs(export_w - import_w) <= balance_w
         elif self._sensor_type == "alarm":
             self._attr_available = fault_state is not None
-            self._attr_is_on = fault not in ("ok", "unavailable", "unknown", "")
+            self._attr_is_on = fault.lower() not in ("ok", "unavailable", "unknown", "")

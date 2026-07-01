@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.3 — 2026-07-01
+
+### Bugfix
+- **`sensor.py` en `binary_sensor.py`**: fault-check was nog steeds case-sensitive (`"OK" ≠ "ok"`). De `fault.lower()` fix uit v1.2.2 was alleen toegepast op `__init__.py`, niet op de sensor en binary sensor platformen. Resultaat: `flow_direction = alarm` en `alarm_active = on` terwijl fault_messages = "OK". Nu alle drie de platformen consistent case-insensitive.
+
 ## v1.2.2 — 2026-07-01
 
 ### 🔴 Kritieke bugfix — alarm-check case mismatch

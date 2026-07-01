@@ -197,7 +197,7 @@ class SofarFlowDirectionSensor(SensorEntity):
 
         balance_w = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_BALANCE_W, DEFAULT_BALANCE_W)
 
-        if fault not in ("ok", "unavailable", "unknown", ""):
+        if fault.lower() not in ("ok", "unavailable", "unknown", ""):
             self._attr_native_value = "alarm"
         elif mode == "standby":
             self._attr_native_value = "standby"
