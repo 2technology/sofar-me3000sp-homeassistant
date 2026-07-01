@@ -38,6 +38,9 @@ from .number import _get_number_helper
 
 
 
+_INVALID_STATES = ("unavailable", "unknown", "none", "")
+
+
 def _get_float(hass: HomeAssistant, entity_id: str) -> float:
     """Get float value from an entity."""
     state = hass.states.get(entity_id)

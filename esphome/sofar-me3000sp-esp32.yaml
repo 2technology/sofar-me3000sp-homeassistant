@@ -227,6 +227,7 @@ text_sensor:
         z.pop_back();
       }
       if (z.empty()) z = "OK";
+      if (z.length() > 250) z = z.substr(0, 250) + "...";
       return {z};
 
   # --- Battery Type (0x10B0) ---

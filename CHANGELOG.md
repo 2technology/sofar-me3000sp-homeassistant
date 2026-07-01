@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.8 — 2026-06-30
+
+### 🔴 Kritieke bugfixes (live HA fouten opgelost)
+
+- **`NameError: _INVALID_STATES is not defined`** — 17.563 errors in HA. De `_INVALID_STATES` tuple was per ongeluk verwijderd uit `sensor.py` bij de code-deduplicatie in v1.1.6. Alle sensors en binary sensors crashten bij elke state-change. Nu hersteld.
+- **`AttributeError: async_get_last_number_data`** — 33 errors. `NumberEntity` heeft geen `async_get_last_number_data()` methode. Vervangen door `async_get_last_state()` met correcte float-casting.
+- **ESPHome fault_messages > 255 tekens** — HA viel terug op "unknown" bij lange fault-strings. ESPHome lambda trunkeert nu naar 250 tekens + "...".
+
+### Getest tegen
+- Live HA instantie via WebSocket API
+- 10 systeem-logentries geanalyseerd, 17.563+ error-count geteld
+- Alle fixes verified tegen HA 2024.x entity API
+
 ## v1.1.7 — 2026-06-30
 
 ### Toegevoegd
