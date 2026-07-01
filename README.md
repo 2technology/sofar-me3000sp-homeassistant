@@ -3,7 +3,7 @@
 > **HACS-compatible Home Assistant integratie voor slimme batterij-aansturing**
 > Gebaseerd op externe meetbronnen (slimme meter + PV), niet op interne Sofar CT-klemmen.
 
-[![Version](https://img.shields.io/badge/version-1.1.6-green)](#)
+[![Version](https://img.shields.io/badge/version-1.1.7-green)](#)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange)](#)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
 
@@ -143,6 +143,8 @@ De wizard vraagt je om deze entities te selecteren:
 
 ### Stap 6: Klaar!
 De integratie maakt automatisch aan:
+
+> 💡 **Entity gewijzigd?** Ga naar **Settings → Devices & Services → SOFAR ME3000SP → Configure** om je entities aan te passen zonder de integratie te verwijderen.
 - **9 sensors** (export, import, netto, surplus, deficit, huislast, PV, flow direction, visual summary)
 - **6 binary sensors** (charging, discharging, exporting, importing, balanced, alarm)
 - **11 tunable drempels** (export start, import start, PV min, balance, margins, SOC limits)
@@ -261,6 +263,30 @@ Vereist alleen Mushroom Cards.
 
 ---
 
+## Blueprint automations (optioneel)
+
+Naast de ingebouwde automatie (HACS integratie) en de YAML package, zijn er ook **6 Blueprint automations** beschikbaar. Deze laten je de automations via de HA UI aanpassen zonder YAML te bewerken.
+
+### Blueprints gebruiken
+1. Kopieer de bestanden uit `blueprints/automation/` naar:
+   ```
+   /config/blueprints/automation/
+   ```
+2. Ga naar **Settings → Automations & Scenes → Blueprints**
+3. Je ziet nu 6 SOFAR blueprints:
+   - **Baseline Auto at Sunrise** — zet inverter naar auto bij zonsopgang
+   - **Charge on Export Surplus** — laad bij echte export + voldoende PV
+   - **Discharge on Import Deficit** — ontlaad bij echte import
+   - **Return to Auto on Grid Balance** — terug naar auto bij balans
+   - **Alarm Emergency Stop** — standby bij alarm + notificatie
+   - **Force Charge on Critical Low SOC** — force-charge bij kritiek lage SOC
+4. Klik **Create Automation** bij de gewenste blueprint
+5. Vul de entities en drempels in via de UI
+
+> 💡 Blueprints zijn optioneel. De HACS integratie heeft alle automatie ingebouwd. Blueprints zijn handig als je de regels via de UI wilt finetunen zonder code.
+
+---
+
 ## Wat doet de automatie?
 
 | Situatie | Actie |
@@ -349,7 +375,9 @@ data:
 | `docs/INSTALLATIE.md` | Stap-voor-stap installatie voor beginners |
 | `docs/TROUBLESHOOTING.md` | Uitgebreide foutzoekgids |
 | `docs/ARCHITECTUUR.md` | Uitleg van de regelstrategie |
+| `blueprints/automation/` | 6 Blueprint automations (UI-aanpasbaar) |
 | `docs/AANPASSEN.md` | Hoe pas je dit aan voor jouw setup? |
+| `docs/ARCHITECTUUR.md` | Uitleg van de regelstrategie |
 | `CHANGELOG.md` | Wat is er veranderd per versie? |
 | `hacs.json` | HACS metadata |
 

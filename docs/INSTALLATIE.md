@@ -93,6 +93,54 @@ GND          ----> GND
 8. Zoek op **"SOFAR ME3000SP"**
 9. Volg de wizard en selecteer je entities
 
+> 💡 **Entity gewijzigd?** Ga naar **Settings → Devices & Services → SOFAR ME3000SP → Configure** om je entities aan te passen zonder de integratie te verwijderen.
+
+### Optie B: Handmatige custom integration
+
+Kopieer `custom_components/sofar_me3000sp/` naar `/config/custom_components/sofar_me3000sp/`. Herstart HA. Ga daarna naar **Settings → Devices & Services → Add Integration**.
+
+### Optie C: YAML package (geen custom integration)
+
+1. Kopieer `home-assistant/packages/sofar_me3000sp.yaml` naar `/config/packages/sofar_me3000sp.yaml`
+2. Voeg aan `configuration.yaml` toe:
+   ```yaml
+   homeassistant:
+     packages: !include_dir_named packages
+   ```
+3. Herstart Home Assistant
+
+---
+
+## 4. (Optioneel) Blueprint automations
+
+Naast de ingebouwde automatie zijn er 6 Blueprint automations beschikbaar die je via de UI kunt aanpassen:
+
+1. Kopieer `blueprints/automation/*.yaml` naar `/config/blueprints/automation/`
+2. Ga naar **Settings → Automations & Scenes → Blueprints**
+3. Klik **Create Automation** bij de gewenste blueprint
+4. Vul entities en drempels in via de UI
+
+> 💡 Blueprints zijn optioneel. De HACS integratie heeft alle automatie al ingebouwd.
+
+---
+
+## 5. (Optioneel) Dashboard toevoegen
+
+### Optie A: HACS (aanbevolen)
+
+1. Ga naar **HACS → Integrations**
+2. **⋮ → Custom repositories**
+3. Voeg toe:
+   ```
+   http://192.168.1.80:3000/Mad_Science_Lab/sofar-me3000sp-homeassistant
+   ```
+4. Type: **Integration**
+5. Klik op **SOFAR ME3000SP Controller → Download**
+6. Herstart Home Assistant
+7. Ga naar **Settings → Devices & Services → Add Integration**
+8. Zoek op **"SOFAR ME3000SP"**
+9. Volg de wizard en selecteer je entities
+
 ### Optie B: Handmatige custom integration
 
 Kopieer `custom_components/sofar_me3000sp/` naar `/config/custom_components/sofar_me3000sp/` en herstart Home Assistant.

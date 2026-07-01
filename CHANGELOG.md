@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.1.7 — 2026-06-30
+
+### Toegevoegd
+- **Reconfigure flow**: pas entity-mapping aan via Settings → Devices & Services → Configure, zonder integratie te verwijderen
+- **6 Blueprint automations**: UI-aanpasbare versies van alle automations:
+  - `sofar_baseline_auto.yaml` — auto bij zonsopgang
+  - `sofar_charge_on_export.yaml` — laden bij export surplus
+  - `sofar_discharge_on_import.yaml` — ontladen bij import deficit
+  - `sofar_return_auto_balanced.yaml` — terug naar auto bij balans
+  - `sofar_alarm_standby.yaml` — noodstop bij alarm
+  - `sofar_force_charge_low_soc.yaml` — force-charge bij kritiek lage SOC
+- Translations uitgebreid met reconfigure + error keys (NL + EN)
+
+### Gewijzigd
+- `config_flow.py`: schema en validatie gerefactoreerd naar herbruikbare functies
+- `hacs.json`: minimum HA versie → 2024.2.0 (reconfigure flow vereist)
+- README: Blueprint sectie, reconfigure hint, bestandentabel bijgewerkt
+
 ## v1.1.6 — 2026-06-30
 
 ### Kritieke bugfixes

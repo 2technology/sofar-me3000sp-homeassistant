@@ -1,0 +1,41 @@
+blueprint:
+  name: "SOFAR ME3000SP: Alarm Emergency Stop"
+  description: >
+    Put the inverter in standby mode when a fault/alarm is detected.
+    Sends a persistent notification with the fault details.
+
+    Part of the SOFAR ME3000SP Controller blueprints.
+  domain: automation
+  source_url: http://192.168.1.80:3000/Mad_Science_Lab/sofar-me3000sp-homeassistant/src/branch/master/blueprints/automation/sofar_alarm_standby.yaml
+  input:
+    fault_entity:
+      name: "Fault Messages Sensor"
+      selector:
+        entity:
+          domain: sensor
+    mode_entity:
+      name: "SOFAR Mode Select"
+      selector:
+        entity:
+          domain: select
+
+mode: single
+trigger:
+  - platform: state
+    entity_id: !input fault_entity
+    not_to:
+      - "OK"
+      - "unavailable"
+      - "unknown"
+action:
+  - service: select.select_option
+    target:
+      entity_id: !input mode_entity
+    data:
+      option: "standby"
+  - service: notify.persistent_notification
+    data:
+      title: "🚨 SOFAR ME3000SP ALARM"
+      message: >-
+        Inverter in STANDBY gezet wegens alarm:
+        {{ states('!input fault_entity') }}

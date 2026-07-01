@@ -1,0 +1,123 @@
+blueprint:
+  name: "SOFAR ME3000SP: Discharge on Import Deficit"
+  description: >
+    Discharge the battery when there is real import deficit from the grid.
+
+    Uses external smart meter data as truth source.
+
+    Part of the SOFAR ME3000SP Controller blueprints.
+  domain: automation
+  source_url: http://192.168.1.80:3000/Mad_Science_Lab/sofar-me3000sp-homeassistant/src/branch/master/blueprints/automation/sofar_discharge_on_import.yaml
+  input:
+    export_entity:
+      name: "Smart Meter Export (kW)"
+      selector:
+        entity:
+          domain: sensor
+    import_entity:
+      name: "Smart Meter Import (kW)"
+      selector:
+        entity:
+          domain: sensor
+    soc_entity:
+      name: "Battery SOC (%)"
+      selector:
+        entity:
+          domain: sensor
+    fault_entity:
+      name: "Fault Messages"
+      selector:
+        entity:
+          domain: sensor
+    mode_entity:
+      name: "SOFAR Mode Select"
+      selector:
+        entity:
+          domain: select
+    discharge_rate_entity:
+      name: "Discharge Rate Number"
+      selector:
+        entity:
+          domain: number
+    import_start_w:
+      name: "Import Start Threshold (W)"
+      default: 300
+      selector:
+        number:
+          min: 0
+          max: 2000
+          step: 50
+          unit_of_measurement: W
+    soc_min_discharge:
+      name: "Min SOC for Discharging (%)"
+      default: 35
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+    discharge_margin_w:
+      name: "Discharge Margin (W)"
+      default: 250
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 25
+          unit_of_measurement: W
+    max_rate:
+      name: "Maximum Discharge Rate (W)"
+      default: 3000
+      selector:
+        number:
+          min: 100
+          max: 3000
+          step: 50
+          unit_of_measurement: W
+    hold_time:
+      name: "Hold Time (seconds)"
+      default: 300
+      selector:
+        number:
+          min: 0
+          max: 3600
+          step: 30
+          unit_of_measurement: s
+
+mode: restart
+trigger:
+  - platform: template
+    value_template: >-
+      {% set export_w = states('!input export_entity') | float(0) * 1000 %}
+      {% set import_w = states('!input import_entity') | float(0) * 1000 %}
+      {% set import_start = !input import_start_w %}
+      {% set soc_min = !input soc_min_discharge %}
+      {{ import_w > import_start
+         and (import_w - export_w) > 0
+         and states('!input soc_entity') | float(0) > soc_min }}
+    for:
+      seconds: !input hold_time
+condition:
+  - condition: state
+    entity_id: !input fault_entity
+    state: "OK"
+action:
+  - variables:
+      export_w: "{{ states('!input export_entity') | float(0) * 1000 }}"
+      import_w: "{{ states('!input import_entity') | float(0) * 1000 }}"
+      deficit_w: "{{ [import_w - export_w, 0] | max | round(0) }}"
+      margin_w: "{{ !input discharge_margin_w }}"
+      discharge_w: "{{ [deficit_w + margin_w, 0] | max | round(0) }}"
+  - condition: template
+    value_template: "{{ discharge_w > 0 }}"
+  - service: select.select_option
+    target:
+      entity_id: !input mode_entity
+    data:
+      option: "discharge"
+  - service: number.set_value
+    target:
+      entity_id: !input discharge_rate_entity
+    data:
+      value: "{{ [discharge_w, !input max_rate] | min }}"

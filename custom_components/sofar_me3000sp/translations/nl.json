@@ -29,5 +29,13 @@
         "name": "Force Charge Rate W"
       }
     }
+  },
+  "errors": {
+    "must_be_entity_id": "Moet een geldige entity ID zijn (sensor.xxx, select.xxx, of number.xxx)",
+    "already_configured": "Deze SOFAR mode entity is al geconfigureerd"
+  },
+  "reconfigure": {
+    "title": "SOFAR ME3000SP Controller herconfigureren",
+    "description": "Pas je entity-mapping aan. De integratie herlaadt automatisch."
   }
 }
