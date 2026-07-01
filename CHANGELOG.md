@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.2.1 — 2026-07-01
+
+### 🔴 Kritieke ESPHome fixes (gevonden via live config analyse)
+
+- **`flow_control_pin` verwijderd** — de XY-485 module is auto-direction; een flow_control_pin verstoort de TX/RX schakeling en laat write-commands verloren gaan. Dit was de hoofdreden dat mode-wissels niet aankwamen.
+- **`me3000sp_rapid` controller verwijderd** — twee controllers op hetzelfde Modbus adres (0x01) met verschillende poll-intervallen (30s/5s) veroorzaken bus collisions. Write-commands raken verloren in de chaos.
+- **`on_boot` priority 100 → -100** — priority 100 draait voor de modbus_controller (priority -10) is geïnitialiseerd. Het "set auto mode" command bij boot werd gedropt.
+- **`battery_save` mode verwijderd** — deze gebruikte interne Sofar PV/load metingen die onbetrouwbaar zijn. Sturing via externe meter in HA is de correcte architectuur.
+- **`send_wait_time` 50ms → 200ms, `command_throttle` 20ms → 100ms** — de SOFAR's Modbus implementatie heeft meer tijd nodig tussen requests. Te agressieve timing veroorzaakt timeouts.
+- **Fault messages truncatie** — strings > 250 tekens worden afgekapt met "..." om HA's 255-teken limiet te respecteren.
+
+### Hardware specifiek
+- ESPHome config nu expliciet voor **XY-485 auto-direction RS485 module** (niet MAX3485)
+- GPIO4/GPIO5 worden niet meer gebruikt — geen flow control pin nodig
+
 ## v1.2.0 — 2026-06-30
 
 ### Verbeterd
