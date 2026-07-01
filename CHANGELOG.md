@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.3.0 — 2026-07-01
+
+### Toegevoegd
+- **Decision Reason sensor** (`sensor.sofar_me3000sp_controller_sofar_decision_reason`) — een sensor die in mensleesbare tekst uitlegt waarom de huidige mode gekozen is. Bijvoorbeeld: `"Charging: surplus 3241W > 400W, PV 3994W > 700W, SOC 47% < 95% → charge @ 2741W"`
+- **Live Decision dashboard card** (`home-assistant/dashboards/sofar_me3000sp_live_decision.yaml`) — een visuele Mushroom + card-mod card die in real-time toont:
+  - Actieve mode met kleurgecodeerd icoon (groen=charge, amber=discharge, blauw=export, rood=import, rood=alarm)
+  - De decision_reason tekst als ondertitel
+  - Live energy flow chips: PV, batterij, import, export, huislast
+  - Mode selector + SOC gauge met severity zones
+  - Laad/ontlaad rate sliders
+  - Beslissingslogica panel met monospace tekst
+
+### Veranderd
+- Sensor count: 9 → 10 (decision_reason toegevoegd)
+
 ## v1.2.3 — 2026-07-01
 
 ### Bugfix

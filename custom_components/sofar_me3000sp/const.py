@@ -2,7 +2,7 @@
 
 DOMAIN = "sofar_me3000sp"
 
-VERSION = "1.2.3"
+VERSION = "1.3.0"
 
 # Config entry keys
 CONF_EXPORT_ENTITY = "export_entity"
@@ -55,6 +55,7 @@ SENSOR_HOUSE_LOAD_POWER = "sofar_house_load_power"
 SENSOR_SMA_PV_POWER = "sofar_sma_pv_power"
 SENSOR_FLOW_DIRECTION = "sofar_flow_direction"
 SENSOR_VISUAL_SUMMARY = "sofar_visual_summary"
+SENSOR_DECISION_REASON = "sofar_decision_reason"
 
 # Binary sensor names
 BINARY_CHARGING_ACTIVE = "sofar_charging_active"

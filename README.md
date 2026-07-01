@@ -3,7 +3,7 @@
 > **HACS-compatible Home Assistant integratie voor slimme batterij-aansturing**
 > Gebaseerd op externe meetbronnen (slimme meter + PV), niet op interne Sofar CT-klemmen.
 
-[![Version](https://img.shields.io/badge/version-1.2.3-green)](#)
+[![Version](https://img.shields.io/badge/version-1.3.0-green)](#)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange)](#)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
 
@@ -255,6 +255,13 @@ Vereist:
 
 > Zonder card-mod werken de kleurranden en glow niet, maar de kaart blijft functioneel.
 
+### Live Decision (nieuw! — visueel)
+```text
+home-assistant/dashboards/sofar_me3000sp_live_decision.yaml
+```
+Toont in real-time de actieve mode, de reden van de beslissing, live energy flow chips, SOC gauge en laad/ontlaad sliders.
+Vereist: HACS + Mushroom Cards + optioneel card-mod.
+
 ### Mushroom Basic (eenvoudiger)
 ```text
 home-assistant/dashboards/sofar_me3000sp_mushroom_basic.yaml
@@ -368,7 +375,7 @@ data:
 | `custom_components/sofar_me3000sp/` | **HACS custom integration** — UI-wizard, sensors, automations, services |
 | `home-assistant/packages/sofar_me3000sp.yaml` | Alternatief: drop-in YAML package (zonder custom integration) |
 | `home-assistant/packages/sofar_me3000sp_template_sensors_only.yaml` | Compacte template-sensors alleen (zonder automations) |
-| `home-assistant/dashboards/sofar_me3000sp_wall_panel.yaml` | Mooie wall-panel dashboardkaart (Mushroom + card-mod) |
+| `home-assistant/dashboards/sofar_me3000sp_live_decision.yaml` | Live decision card met beslissingslogica + flow chips |
 | `home-assistant/dashboards/sofar_me3000sp_mushroom_basic.yaml` | Eenvoudigere Mushroom dashboardkaart |
 | `esphome/sofar-me3000sp-esp32.yaml` | ESP32/MAX3485 firmware voor SOFAR control |
 | `esphome/secrets.yaml.example` | Voorbeeld secrets (kopieer naar secrets.yaml) |

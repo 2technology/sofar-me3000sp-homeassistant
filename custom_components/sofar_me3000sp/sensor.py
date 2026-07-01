@@ -31,6 +31,7 @@ from .const import (
     SENSOR_NET_GRID_POWER,
     SENSOR_SMA_PV_POWER,
     SENSOR_VISUAL_SUMMARY,
+    SENSOR_DECISION_REASON,
 )
 from .entity import _get_device_info
 from .number import _get_number_helper
@@ -76,6 +77,7 @@ async def async_setup_entry(
         SofarDerivedSensor(hass, entry, SENSOR_SMA_PV_POWER, "SOFAR SMA PV Power", "mdi:solar-power", "pv"),
         SofarFlowDirectionSensor(hass, entry),
         SofarVisualSummarySensor(hass, entry),
+        SofarDecisionReasonSensor(hass, entry),
     ]
     async_add_entities(entities)
 
@@ -266,3 +268,102 @@ class SofarVisualSummarySensor(SensorEntity):
             f"Netto {round(net_w)} W · "
             f"Mode {mode}"
         )
+
+class SofarDecisionReasonSensor(SensorEntity):
+    """Sensor that explains WHY the current mode was chosen."""
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:clipboard-text-clock"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self._attr_unique_id = f"{DOMAIN}_{SENSOR_DECISION_REASON}"
+        self._attr_name = "SOFAR Decision Reason"
+        self._entry = entry
+        self._hass = hass
+        self._attr_native_value = "Initializing..."
+        self._attr_available = False
+        self._attr_device_info = _get_device_info(entry)
+
+    async def async_added_to_hass(self) -> None:
+        data = self._entry.data
+        tracked = [
+            data[CONF_EXPORT_ENTITY],
+            data[CONF_IMPORT_ENTITY],
+            data[CONF_PV_ENTITY],
+            data[CONF_SOFAR_MODE_ENTITY],
+            data[CONF_SOFAR_FAULT_ENTITY],
+            data[CONF_SOFAR_SOC_ENTITY],
+        ]
+        self.async_on_remove(async_track_state_change_event(self._hass, tracked, self._on_state_change))
+        self._update_state()
+
+    @callback
+    def _on_state_change(self, event) -> None:
+        self._update_state()
+        self.async_write_ha_state()
+
+    def _update_state(self) -> None:
+        data = self._entry.data
+        export_state = self._hass.states.get(data[CONF_EXPORT_ENTITY])
+        import_state = self._hass.states.get(data[CONF_IMPORT_ENTITY])
+        pv_state = self._hass.states.get(data[CONF_PV_ENTITY])
+        mode_state = self._hass.states.get(data[CONF_SOFAR_MODE_ENTITY])
+        fault_state = self._hass.states.get(data[CONF_SOFAR_FAULT_ENTITY])
+        soc_state = self._hass.states.get(data[CONF_SOFAR_SOC_ENTITY])
+
+        self._attr_available = (
+            export_state is not None and export_state.state not in _INVALID_STATES
+            and import_state is not None and import_state.state not in _INVALID_STATES
+            and pv_state is not None and pv_state.state not in _INVALID_STATES
+            and mode_state is not None and mode_state.state not in _INVALID_STATES
+            and fault_state is not None and fault_state.state not in _INVALID_STATES
+            and soc_state is not None and soc_state.state not in _INVALID_STATES
+        )
+
+        if not self._attr_available:
+            return
+
+        fault = _get_str(self._hass, data[CONF_SOFAR_FAULT_ENTITY])
+        mode = _get_str(self._hass, data[CONF_SOFAR_MODE_ENTITY])
+        export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
+        import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
+        pv_w = _get_float(self._hass, data[CONF_PV_ENTITY])
+        soc = _get_float(self._hass, data[CONF_SOFAR_SOC_ENTITY])
+        net_w = export_w - import_w
+        surplus_w = max(0, net_w)
+        deficit_w = max(0, -net_w)
+
+        balance_w = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_BALANCE_W, DEFAULT_BALANCE_W)
+        export_start = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_EXPORT_START_W, DEFAULT_EXPORT_START_W)
+        import_start = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_IMPORT_START_W, DEFAULT_IMPORT_START_W)
+        pv_min = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_PV_MIN_W, DEFAULT_PV_MIN_W)
+        soc_max = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_SOC_MAX_CHARGE, DEFAULT_SOC_MAX_CHARGE)
+        soc_min = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_SOC_MIN_DISCHARGE, DEFAULT_SOC_MIN_DISCHARGE)
+        soc_force = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_SOC_FORCE_CHARGE, DEFAULT_SOC_FORCE_CHARGE)
+
+        # Build the reason string based on the same logic as _run_automation
+        if fault.lower() not in ("ok", "unavailable", "unknown", ""):
+            self._attr_native_value = f"Alarm: {fault} → standby"
+        elif soc < soc_force:
+            self._attr_native_value = f"Force charge: SOC {soc:.0f}% < {soc_force:.0f}% → charge"
+        elif surplus_w > export_start and pv_w > pv_min and soc < soc_max:
+            charge_w = max(0, int(surplus_w - _get_number_helper(self._hass, self._entry.entry_id, NUMBER_CHARGE_MARGIN_W, DEFAULT_CHARGE_MARGIN_W)))
+            if mode == "charge":
+                self._attr_native_value = f"Charging: surplus {surplus_w:.0f}W > {export_start:.0f}W, PV {pv_w:.0f}W > {pv_min:.0f}W, SOC {soc:.0f}% < {soc_max:.0f}% → charge @ {charge_w}W"
+            else:
+                self._attr_native_value = f"Charge pending: surplus {surplus_w:.0f}W > {export_start:.0f}W (waiting for hold time)"
+        elif import_w > import_start and deficit_w > 0 and soc > soc_min:
+            discharge_w = max(0, int(deficit_w + _get_number_helper(self._hass, self._entry.entry_id, NUMBER_DISCHARGE_MARGIN_W, DEFAULT_DISCHARGE_MARGIN_W)))
+            if mode == "discharge":
+                self._attr_native_value = f"Discharging: import {import_w:.0f}W > {import_start:.0f}W, deficit {deficit_w:.0f}W, SOC {soc:.0f}% > {soc_min:.0f}% → discharge @ {discharge_w}W"
+            else:
+                self._attr_native_value = f"Discharge pending: import {import_w:.0f}W > {import_start:.0f}W (waiting for hold time)"
+        elif abs(net_w) < balance_w:
+            if mode in ("auto", "standby"):
+                self._attr_native_value = f"Balanced: |net| {abs(net_w):.0f}W < {balance_w:.0f}W → auto"
+            else:
+                self._attr_native_value = f"Balance pending: |net| {abs(net_w):.0f}W < {balance_w:.0f}W (waiting for hold time)"
+        elif mode == "standby":
+            self._attr_native_value = f"Standby (no active rule) → auto"
+        else:
+            self._attr_native_value = f"Auto: net {net_w:.0f}W, surplus {surplus_w:.0f}W, deficit {deficit_w:.0f}W, SOC {soc:.0f}%"
