@@ -200,7 +200,7 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
     force_charge_rate = _get_number_helper(hass, entry.entry_id, NUMBER_FORCE_CHARGE_RATE, DEFAULT_FORCE_CHARGE_RATE)
 
     # --- ALARM: force standby ---
-    if fault not in (STATE_OK, STATE_UNAVAILABLE, STATE_UNKNOWN, ""):
+    if fault.lower() not in (STATE_OK, STATE_UNAVAILABLE, STATE_UNKNOWN, ""):
         await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_STANDBY)
         return
 

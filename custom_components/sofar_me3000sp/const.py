@@ -2,7 +2,7 @@
 
 DOMAIN = "sofar_me3000sp"
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 
 # Config entry keys
 CONF_EXPORT_ENTITY = "export_entity"

@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.2 — 2026-07-01
+
+### 🔴 Kritieke bugfix — alarm-check case mismatch
+
+- **`STATE_OK` is `"ok"` (kleine letters) in Home Assistant, maar de SOFAR stuurt `"OK"` (hoofdletters).** De alarm-check deed `fault not in (STATE_OK, ...)` → `"OK" not in ("ok", ...)` → **True elke keer**. De integratie dacht permanent dat er een alarm was en zette de mode **continu naar standby**. Dit verklaart de ESP32 log met "Mode → STANDBY" elke seconde.
+- **Fix**: alle fault-checks gebruiken nu `fault.lower()` voor case-insensitive vergelijking. Toegepast in `__init__.py`, `sensor.py` en `binary_sensor.py`.
+
 ## v1.2.1 — 2026-07-01
 
 ### 🔴 Kritieke ESPHome fixes (gevonden via live config analyse)
