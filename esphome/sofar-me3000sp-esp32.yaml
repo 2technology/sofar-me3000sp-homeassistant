@@ -1,16 +1,17 @@
 # =============================================================================
-# ESPHome configuratie voor SOFAR ME3000SP — ESP32 + XY-485 RS485
+# ESPHome configuratie voor SOFAR ME3000SP — ESP32 + MAX3485 RS485
 # Volledige read/write control via Modbus functiecode 0x42 (Passive Mode)
 #
 # Hardware:
 #   - ESP32 Dev Board
-#   - XY-485 TTL-naar-RS485 module (AUTO-DIRECTION, geen flow control nodig)
-#   - Bedrading: ESP32 GPIO17→XY-485 TXD, GPIO16→XY-485 RXD
-#                 ESP32 3.3V→XY-485 VCC, ESP32 GND→XY-485 GND
-#   - XY-485 A+→ME3000SP 485s-A, XY-485 B-→ME3000SP 485s-B
+#   - MAX3485 TTL-naar-RS485 module (3.3V, met DE/RE flow control)
+#   - Bedrading: ESP32 GPIO17→MAX3485 DI, GPIO16→MAX3485 RO
+#                 ESP32 GPIO4→MAX3485 DE+RE (samen)
+#                 ESP32 3.3V→MAX3485 VCC, ESP32 GND→MAX3485 GND
+#   - MAX3485 A→ME3000SP 485s-A, B→ME3000SP 485s-B
 #
 # ⚠️ De ME3000SP moet in PASSIVE MODE staan (via het display-menu)
-# ⚠️ GEEN flow_control_pin — de XY-485 regelt richting automatisch
+# GPIO4 drijft DE+RE — de MAX3485 schakelt tussen TX en RX
 # =============================================================================
 
 substitutions:
@@ -60,9 +61,10 @@ wifi:
 captive_portal:
 
 # ---------------------------------------------------------------------------
-# UART — RS485 via XY-485 met AUTO-DIRECTION (geen flow_control_pin!)
-# GPIO17 = TX (naar XY-485 TXD)
-# GPIO16 = RX (van XY-485 RXD)
+# UART — RS485 via MAX3485 met flow control op GPIO4
+# GPIO17 = TX (naar MAX3485 DI)
+# GPIO16 = RX (van MAX3485 RO)
+# GPIO4  = flow_control (MAX3485 DE + RE samen)
 # ---------------------------------------------------------------------------
 uart:
   id: mod_bus
@@ -77,7 +79,7 @@ modbus:
   id: modbus_me3000sp
   uart_id: mod_bus
   send_wait_time: 200ms
-  # GEEN flow_control_pin — XY-485 is auto-direction!
+  flow_control_pin: GPIO4
 
 modbus_controller:
   - id: me3000sp
