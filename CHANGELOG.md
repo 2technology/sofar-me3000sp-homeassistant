@@ -1,5 +1,62 @@
 # Changelog
 
+## v2.0.0 — 2026-07-01
+
+### 🎯 Nieuw: Strategie-systeem + Control Center
+
+Dit is een grote update die de integratie transformeert van losse drempels naar een gecentraliseerd strategie-systeem.
+
+#### Strategie-kiezer (select entity)
+Nieuwe entity: `select.sofar_me3000sp_controller_sofar_strategy` — kies via de UI tussen:
+
+| Strategie | Beschrijving |
+|---|---|
+| **Zelfconsumptie** | Laad bij PV-surplus, ontlaad bij import > threshold. Default. |
+| **Peak-shaving** | Houd import onder piekdrempel. Ontlaad alleen bij pieken. |
+| **Nachtbesparing** | Geen discharge 's nachts. Bewaar batterij voor overdag. |
+| **Forceer laden** | Laad batterij nu ongeacht omstandigheden. |
+| **Forceer ontladen** | Ontlaad batterij nu. |
+| **Auto** | SOFAR bepaalt zelf. |
+
+#### Peak-shaving logica
+- De batterij ontladt alleen als import > piekdrempel (instelbaar, default 2500W)
+- Ontlaad vermogen = import − piekdrempel + marge (precies genoeg om onder drempel te blijven)
+- Bij normale verbruik (< drempel) staat de batterij in auto — geen onnodige cycli
+- Voorkomt het "ping-pong" patroon van discharge→force-charge→discharge
+
+#### Nachtbesparing logica
+- Instelbare uren (default 22:00-06:00)
+- 's Nachts: geen discharge, batterij bewaard voor overdag
+- Overdag: zelfconsumptie logica actief
+- Force-charge bij kritiek lage SOC blijft altijd actief
+
+#### Nieuwe sensors
+- `sensor.sofar_me3000sp_controller_sofar_monthly_peak_w` — hoogste 15-min gemiddelde import van de maand
+- `sensor.sofar_me3000sp_controller_sofar_strategy_status` — uitgebreide status met strategie + beslissingslogica
+
+#### Nieuwe number helpers
+- `number.sofar_me3000sp_controller_sofar_peak_threshold_w` — piekdrempel (default 2500W)
+- `number.sofar_me3000sp_controller_sofar_night_start_hour` — start nacht (default 22)
+- `number.sofar_me3000sp_controller_sofar_night_end_hour` — eind nacht (default 6)
+
+#### Nieuw platform
+- `select.py` — select platform voor strategie-kiezer
+
+#### Control Center dashboard
+Nieuw: `home-assistant/dashboards/sofar_me3000sp_control_center.yaml` — een centraal controlepaneel met:
+- Strategie-kiezer dropdown
+- Live status chips (mode, SOC, batterij, import, PV)
+- Peak-shaving tracking (maandelijkse piek vs drempel)
+- Beslissingslogica in real-time
+- Nachtbesparing instellingen
+- Laad/ontlaad sliders
+- Dagstatistieken
+
+#### Beslissingslogica verbeterd
+- `_run_automation` herschreven met strategie-dispatch
+- `decision_reason` wordt nu in de store opgeslagen en door sensors gelezen
+- Alarm-check en force-charge blijven altijd actief, ongeacht strategie
+
 ## v1.3.1 — 2026-07-01
 
 ### Bugfix

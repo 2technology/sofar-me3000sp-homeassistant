@@ -31,6 +31,12 @@ from .const import (
     NUMBER_SOC_FORCE_CHARGE_TARGET,
     NUMBER_SOC_MAX_CHARGE,
     NUMBER_SOC_MIN_DISCHARGE,
+    NUMBER_PEAK_THRESHOLD_W,
+    NUMBER_NIGHT_START_HOUR,
+    NUMBER_NIGHT_END_HOUR,
+    DEFAULT_PEAK_THRESHOLD_W,
+    DEFAULT_NIGHT_START_HOUR,
+    DEFAULT_NIGHT_END_HOUR,
 )
 from .entity import _get_device_info
 
@@ -53,6 +59,9 @@ async def async_setup_entry(
         SofarNumberHelper(entry, NUMBER_SOC_FORCE_CHARGE, "SOFAR SOC Force Charge %", "mdi:battery-alert-variant-outline", 0, 50, 1, DEFAULT_SOC_FORCE_CHARGE),
         SofarNumberHelper(entry, NUMBER_SOC_FORCE_CHARGE_TARGET, "SOFAR SOC Force Charge Target %", "mdi:battery-charging-high", 20, 100, 1, DEFAULT_SOC_FORCE_CHARGE_TARGET),
         SofarNumberHelper(entry, NUMBER_FORCE_CHARGE_RATE, "SOFAR Force Charge Rate W", "mdi:battery-charging", 100, 3000, 50, DEFAULT_FORCE_CHARGE_RATE),
+        SofarNumberHelper(entry, NUMBER_PEAK_THRESHOLD_W, "SOFAR Peak Threshold W", "mdi:chart-line-variant", 500, 5000, 50, DEFAULT_PEAK_THRESHOLD_W),
+        SofarNumberHelper(entry, NUMBER_NIGHT_START_HOUR, "SOFAR Night Start Hour", "mdi:weather-night", 18, 23, 1, DEFAULT_NIGHT_START_HOUR),
+        SofarNumberHelper(entry, NUMBER_NIGHT_END_HOUR, "SOFAR Night End Hour", "mdi:weather-sunny", 4, 10, 1, DEFAULT_NIGHT_END_HOUR),
     ]
     async_add_entities(entities)
 

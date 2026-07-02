@@ -95,6 +95,8 @@ async def async_setup_entry(
         SofarFlowDirectionSensor(hass, entry),
         SofarVisualSummarySensor(hass, entry),
         SofarDecisionReasonSensor(hass, entry),
+        SofarMonthlyPeakSensor(hass, entry),
+        SofarStrategyStatusSensor(hass, entry),
     ]
     async_add_entities(entities)
 
@@ -384,3 +386,113 @@ class SofarDecisionReasonSensor(SensorEntity):
             self._attr_native_value = f"Standby (no active rule) → auto"
         else:
             self._attr_native_value = f"Auto: net {net_w:.0f}W, surplus {surplus_w:.0f}W, deficit {deficit_w:.0f}W, SOC {soc:.0f}%"
+
+
+class SofarMonthlyPeakSensor(SensorEntity):
+    """Sensor that tracks the highest 15-min average import peak this month."""
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:chart-line-variant"
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self._attr_unique_id = f"{DOMAIN}_{SENSOR_MONTHLY_PEAK_W}"
+        self._attr_name = "SOFAR Monthly Peak W"
+        self._entry = entry
+        self._hass = hass
+        self._attr_native_value = 0
+        self._attr_available = True
+        self._attr_device_info = _get_device_info(entry)
+        self._peak_history = []  # (timestamp, import_w) pairs
+
+    async def async_added_to_hass(self) -> None:
+        data = self._entry.data
+        self.async_on_remove(async_track_state_change_event(self._hass, [data[CONF_IMPORT_ENTITY]], self._on_state_change))
+        self._update_state()
+
+    @callback
+    def _on_state_change(self, event) -> None:
+        self._update_state()
+        self.async_write_ha_state()
+
+    def _update_state(self) -> None:
+        import time as _time
+        data = self._entry.data
+        import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
+        now = _time.time()
+
+        # Add to history
+        self._peak_history.append((now, import_w))
+
+        # Keep only last 15 minutes of data
+        cutoff = now - 900  # 15 min
+        self._peak_history = [(t, w) for t, w in self._peak_history if t >= cutoff]
+
+        # Calculate current 15-min average
+        if len(self._peak_history) >= 3:
+            avg = sum(w for _, w in self._peak_history) / len(self._peak_history)
+        else:
+            avg = import_w
+
+        # Track the monthly peak (stored in hass.data)
+        store = self._hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
+        monthly_peak = store.get("monthly_peak_w", 0)
+        if avg > monthly_peak:
+            monthly_peak = avg
+            store["monthly_peak_w"] = monthly_peak
+
+        self._attr_native_value = round(monthly_peak)
+
+
+class SofarStrategyStatusSensor(SensorEntity):
+    """Sensor that shows the current strategy and its status."""
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:clipboard-text-clock"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self._attr_unique_id = f"{DOMAIN}_{SENSOR_STRATEGY_STATUS}"
+        self._attr_name = "SOFAR Strategy Status"
+        self._entry = entry
+        self._hass = hass
+        self._attr_native_value = "Initializing..."
+        self._attr_available = True
+        self._attr_device_info = _get_device_info(entry)
+
+    async def async_added_to_hass(self) -> None:
+        data = self._entry.data
+        tracked = [
+            data[CONF_EXPORT_ENTITY],
+            data[CONF_IMPORT_ENTITY],
+            data[CONF_SOFAR_MODE_ENTITY],
+            data[CONF_SOFAR_SOC_ENTITY],
+        ]
+        self.async_on_remove(async_track_state_change_event(self._hass, tracked, self._on_state_change))
+        self._update_state()
+
+    @callback
+    def _on_state_change(self, event) -> None:
+        self._update_state()
+        self.async_write_ha_state()
+
+    def _update_state(self) -> None:
+        store = self._hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
+        strategy = store.get("strategy", STRATEGY_SELF_CONSUMPTION)
+        decision_reason = store.get("decision_reason", "...")
+        strategy_label = STRATEGY_LABELS.get(strategy, strategy)
+
+        data = self._entry.data
+        import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
+        soc = _get_float(self._hass, data[CONF_SOFAR_SOC_ENTITY])
+        monthly_peak = store.get("monthly_peak_w", 0)
+        peak_threshold = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_PEAK_THRESHOLD_W, DEFAULT_PEAK_THRESHOLD_W)
+
+        self._attr_native_value = (
+            f"Strategie: {strategy_label} | "
+            f"Import: {import_w:.0f}W | "
+            f"SOC: {soc:.0f}% | "
+            f"Piek: {monthly_peak:.0f}W / {peak_threshold:.0f}W | "
+            f"{decision_reason}"
+        )

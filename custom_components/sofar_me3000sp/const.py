@@ -2,7 +2,7 @@
 
 DOMAIN = "sofar_me3000sp"
 
-VERSION = "1.3.1"
+VERSION = "2.0.0"
 
 # Config entry keys
 CONF_EXPORT_ENTITY = "export_entity"
@@ -74,3 +74,54 @@ NUMBER_CHARGE_MARGIN_W = "sofar_charge_margin_w"
 NUMBER_DISCHARGE_MARGIN_W = "sofar_discharge_margin_w"
 NUMBER_SOC_MAX_CHARGE = "sofar_soc_max_charge"
 NUMBER_SOC_MIN_DISCHARGE = "sofar_soc_min_discharge"
+
+
+# === STRATEGIE SYSTEEM ===
+
+# Strategy options
+STRATEGY_SELF_CONSUMPTION = "self_consumption"
+STRATEGY_PEAK_SHAVING = "peak_shaving"
+STRATEGY_NIGHT_SAVE = "night_save"
+STRATEGY_FORCE_CHARGE = "force_charge"
+STRATEGY_FORCE_DISCHARGE = "force_discharge"
+STRATEGY_AUTO = "auto"
+
+STRATEGY_OPTIONS = [
+    STRATEGY_SELF_CONSUMPTION,
+    STRATEGY_PEAK_SHAVING,
+    STRATEGY_NIGHT_SAVE,
+    STRATEGY_FORCE_CHARGE,
+    STRATEGY_FORCE_DISCHARGE,
+    STRATEGY_AUTO,
+]
+
+STRATEGY_LABELS = {
+    STRATEGY_SELF_CONSUMPTION: "Zelfconsumptie",
+    STRATEGY_PEAK_SHAVING: "Peak-shaving",
+    STRATEGY_NIGHT_SAVE: "Nachtbesparing",
+    STRATEGY_FORCE_CHARGE: "Forceer laden",
+    STRATEGY_FORCE_DISCHARGE: "Forceer ontladen",
+    STRATEGY_AUTO: "Auto (SOFAR bepaalt)",
+}
+
+# Select entity names
+SELECT_STRATEGY = "sofar_strategy"
+
+# Peak-shaving defaults
+DEFAULT_PEAK_THRESHOLD_W = 2500
+DEFAULT_PEAK_LOOKBACK_MINUTES = 15
+
+# Night save hours
+DEFAULT_NIGHT_START_HOUR = 22
+DEFAULT_NIGHT_END_HOUR = 6
+
+# Peak tracking sensor names
+SENSOR_MONTHLY_PEAK_W = "sofar_monthly_peak_w"
+SENSOR_PEAK_STATUS = "sofar_peak_status"
+SENSOR_STRATEGY_STATUS = "sofar_strategy_status"
+SENSOR_CYCLE_COUNT = "sofar_cycle_count"
+
+# Peak-shaving number helper names
+NUMBER_PEAK_THRESHOLD_W = "sofar_peak_threshold_w"
+NUMBER_NIGHT_START_HOUR = "sofar_night_start_hour"
+NUMBER_NIGHT_END_HOUR = "sofar_night_end_hour"

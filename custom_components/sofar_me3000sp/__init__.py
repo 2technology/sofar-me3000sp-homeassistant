@@ -65,11 +65,25 @@ from .const import (
     NUMBER_SOC_FORCE_CHARGE_TARGET,
     NUMBER_SOC_MAX_CHARGE,
     NUMBER_SOC_MIN_DISCHARGE,
+    DEFAULT_PEAK_THRESHOLD_W,
+    DEFAULT_NIGHT_START_HOUR,
+    DEFAULT_NIGHT_END_HOUR,
+    NUMBER_PEAK_THRESHOLD_W,
+    NUMBER_NIGHT_START_HOUR,
+    NUMBER_NIGHT_END_HOUR,
+    SELECT_STRATEGY,
+    STRATEGY_AUTO,
+    STRATEGY_FORCE_CHARGE,
+    STRATEGY_FORCE_DISCHARGE,
+    STRATEGY_NIGHT_SAVE,
+    STRATEGY_PEAK_SHAVING,
+    STRATEGY_SELF_CONSUMPTION,
+    STRATEGY_LABELS,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.NUMBER]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.NUMBER, Platform.SELECT]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -115,6 +129,26 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if hass.services.has_service(DOMAIN, service):
                     hass.services.async_remove(DOMAIN, service)
     return unload_ok
+
+
+
+
+def _get_strategy(hass: HomeAssistant, entry_id: str) -> str:
+    """Get the current strategy from the store."""
+    store = hass.data.get(DOMAIN, {}).get(entry_id, {})
+    return store.get("strategy", STRATEGY_SELF_CONSUMPTION)
+
+
+def _is_night_time(now: float, night_start: int, night_end: int) -> bool:
+    """Check if current time is within night-save hours."""
+    import datetime as dt
+    current = dt.datetime.fromtimestamp(now)
+    hour = current.hour
+    if night_start > night_end:
+        # Spans midnight (e.g. 22:00 - 06:00)
+        return hour >= night_start or hour < night_end
+    else:
+        return night_start <= hour < night_end
 
 
 def _get_entity_state(hass: HomeAssistant, entity_id: str, default=0.0):
@@ -171,9 +205,10 @@ async def _setup_automation(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
-    """Run the automation logic: decide mode and set charge/discharge rates."""
+    """Run the automation logic based on the selected strategy."""
     data = entry.data
     now = time.monotonic()
+    now_ts = time.time()
 
     export_w = _get_entity_state(hass, data[CONF_EXPORT_ENTITY]) * 1000  # kW → W
     import_w = _get_entity_state(hass, data[CONF_IMPORT_ENTITY]) * 1000
@@ -198,36 +233,133 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
     soc_force_charge = _get_number_helper(hass, entry.entry_id, NUMBER_SOC_FORCE_CHARGE, DEFAULT_SOC_FORCE_CHARGE)
     soc_force_charge_target = _get_number_helper(hass, entry.entry_id, NUMBER_SOC_FORCE_CHARGE_TARGET, DEFAULT_SOC_FORCE_CHARGE_TARGET)
     force_charge_rate = _get_number_helper(hass, entry.entry_id, NUMBER_FORCE_CHARGE_RATE, DEFAULT_FORCE_CHARGE_RATE)
+    peak_threshold = _get_number_helper(hass, entry.entry_id, NUMBER_PEAK_THRESHOLD_W, DEFAULT_PEAK_THRESHOLD_W)
+    night_start = int(_get_number_helper(hass, entry.entry_id, NUMBER_NIGHT_START_HOUR, DEFAULT_NIGHT_START_HOUR))
+    night_end = int(_get_number_helper(hass, entry.entry_id, NUMBER_NIGHT_END_HOUR, DEFAULT_NIGHT_END_HOUR))
 
-    # --- ALARM: force standby ---
+    # Read current strategy
+    strategy = _get_strategy(hass, entry.entry_id)
+
+    # --- ALARM: always force standby regardless of strategy ---
     if fault.lower() not in (STATE_OK, STATE_UNAVAILABLE, STATE_UNKNOWN, ""):
         await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_STANDBY)
+        store["decision_reason"] = f"Alarm: {fault} → standby"
         return
 
-    # --- FORCE CHARGE: critical low SOC ---
+    # --- FORCE CHARGE: critical low SOC (always, regardless of strategy) ---
     if soc < soc_force_charge:
         if not store.get("force_charge_active"):
             store["force_charge_active"] = True
             store["force_charge_start"] = now
             await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
             await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], int(force_charge_rate))
-            _LOGGER.info("Force charge started: SOC=%.0f%% < %.0f%%, rate=%.0fW", soc, soc_force_charge, force_charge_rate)
+            store["decision_reason"] = f"Force charge: SOC {soc:.0f}% < {soc_force_charge:.0f}% → charge @ {force_charge_rate:.0f}W"
         else:
             elapsed = now - store.get("force_charge_start", now)
             if soc >= soc_force_charge_target:
                 store["force_charge_active"] = False
                 await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
-                _LOGGER.info("Force charge complete: SOC=%.0f%% >= %.0f%%", soc, soc_force_charge_target)
+                store["decision_reason"] = f"Force charge done: SOC {soc:.0f}% >= {soc_force_charge_target:.0f}% → auto"
             elif elapsed > FORCE_CHARGE_TIMEOUT:
                 store["force_charge_active"] = False
                 await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
-                _LOGGER.warning("Force charge timeout after %.0fs", FORCE_CHARGE_TIMEOUT)
+                store["decision_reason"] = f"Force charge timeout → auto"
         return
     else:
         if store.get("force_charge_active"):
             store["force_charge_active"] = False
-            _LOGGER.info("Force charge cleared: SOC=%.0f%% >= %.0f%%", soc, soc_force_charge)
 
+    # === STRATEGY DISPATCH ===
+
+    if strategy == STRATEGY_AUTO:
+        # Let the SOFAR decide everything
+        if current_mode != MODE_AUTO:
+            await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+        store["decision_reason"] = "Auto: SOFAR bepaalt zelf"
+        return
+
+    if strategy == STRATEGY_FORCE_CHARGE:
+        # Force charge regardless of conditions
+        if current_mode != MODE_CHARGE:
+            await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
+        rate = int(force_charge_rate)
+        await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], rate)
+        store["decision_reason"] = f"Forceer laden: charge @ {rate}W (handmatige override)"
+        return
+
+    if strategy == STRATEGY_FORCE_DISCHARGE:
+        # Force discharge regardless of conditions
+        if soc > soc_min_discharge:
+            if current_mode != MODE_DISCHARGE:
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_DISCHARGE)
+            discharge_w = min(int(deficit_w + discharge_margin) if deficit_w > 0 else 1000, DEFAULT_MAX_RATE)
+            await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
+            store["decision_reason"] = f"Forceer ontladen: discharge @ {discharge_w}W (handmatige override)"
+        else:
+            store["decision_reason"] = f"Forceer ontladen: SOC {soc:.0f}% <= min {soc_min_discharge:.0f}% → niet ontladen"
+        return
+
+    # === PEAK-SHAVING STRATEGY ===
+    if strategy == STRATEGY_PEAK_SHAVING:
+        # Only discharge when import exceeds peak threshold
+        if import_w > peak_threshold and soc > soc_min_discharge:
+            # Battery should discharge to cover the excess above threshold
+            excess_w = int(import_w - peak_threshold)
+            discharge_w = min(max(0, excess_w + discharge_margin), DEFAULT_MAX_RATE)
+            if discharge_w > 0:
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_DISCHARGE)
+                await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
+                store["decision_reason"] = f"Peak-shaving: import {import_w:.0f}W > {peak_threshold:.0f}W → discharge @ {discharge_w}W"
+                store["charge_hold_start"] = None
+                store["balance_hold_start"] = None
+            return
+        # Charge when there's surplus (PV export)
+        elif surplus_w > export_start and pv_w > pv_min and soc < soc_max_charge:
+            if store.get("charge_hold_start") is None:
+                store["charge_hold_start"] = now
+                store["decision_reason"] = f"Peak-shaving charge pending: surplus {surplus_w:.0f}W > {export_start:.0f}W (hold)"
+            elif now - store["charge_hold_start"] >= CHARGE_HOLD_SECONDS:
+                charge_w = min(max(0, int(surplus_w - charge_margin)), DEFAULT_MAX_RATE)
+                if charge_w > 0:
+                    await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
+                    await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], charge_w)
+                    store["decision_reason"] = f"Peak-shaving charge: surplus {surplus_w:.0f}W → charge @ {charge_w}W"
+                    store["discharge_hold_start"] = None
+                    store["balance_hold_start"] = None
+            return
+        else:
+            store["charge_hold_start"] = None
+            # Return to auto when nothing to do
+            if current_mode not in (MODE_AUTO, MODE_STANDBY):
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+            store["decision_reason"] = f"Peak-shaving standby: import {import_w:.0f}W < {peak_threshold:.0f}W → auto"
+            return
+
+    # === NIGHT-SAVE STRATEGY ===
+    if strategy == STRATEGY_NIGHT_SAVE:
+        is_night = _is_night_time(now_ts, night_start, night_end)
+        
+        if is_night:
+            # During night: no discharge (preserve battery), only force-charge if critical
+            if current_mode not in (MODE_AUTO, MODE_STANDBY):
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+            store["decision_reason"] = f"Nachtbesparing: geen discharge ({night_start}:00-{night_end}:00) → auto"
+            store["discharge_hold_start"] = None
+            # Still allow charging if there's surplus (unlikely at night but possible)
+            if surplus_w > export_start and soc < soc_max_charge:
+                if store.get("charge_hold_start") is None:
+                    store["charge_hold_start"] = now
+                elif now - store["charge_hold_start"] >= CHARGE_HOLD_SECONDS:
+                    charge_w = min(max(0, int(surplus_w - charge_margin)), DEFAULT_MAX_RATE)
+                    if charge_w > 0:
+                        await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
+                        await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], charge_w)
+                        store["decision_reason"] = f"Nachtbesparing charge: surplus {surplus_w:.0f}W → charge @ {charge_w}W"
+            return
+        # During day: same as self-consumption
+        # Fall through to self-consumption logic
+
+    # === SELF-CONSUMPTION STRATEGY (default, also day-mode for night-save) ===
     # --- CHARGE: surplus export ---
     if surplus_w > export_start and pv_w > pv_min and soc < soc_max_charge:
         if store.get("charge_hold_start") is None:
@@ -239,6 +371,9 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
                 await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], charge_w)
                 store["discharge_hold_start"] = None
                 store["balance_hold_start"] = None
+                store["decision_reason"] = f"Zelfconsumptie: surplus {surplus_w:.0f}W > {export_start:.0f}W, PV {pv_w:.0f}W > {pv_min:.0f}W → charge @ {charge_w}W"
+        else:
+            store["decision_reason"] = f"Charge pending: surplus {surplus_w:.0f}W > {export_start:.0f}W (hold {CHARGE_HOLD_SECONDS}s)"
         return
     else:
         store["charge_hold_start"] = None
@@ -254,6 +389,9 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
                 await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
                 store["charge_hold_start"] = None
                 store["balance_hold_start"] = None
+                store["decision_reason"] = f"Zelfconsumptie: import {import_w:.0f}W > {import_start:.0f}W → discharge @ {discharge_w}W"
+        else:
+            store["decision_reason"] = f"Discharge pending: import {import_w:.0f}W > {import_start:.0f}W (hold {DISCHARGE_HOLD_SECONDS}s)"
         return
     else:
         store["discharge_hold_start"] = None
@@ -267,18 +405,20 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
                 await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
             store["charge_hold_start"] = None
             store["discharge_hold_start"] = None
+            store["decision_reason"] = f"Balans: |net| {abs(net_w):.0f}W < {balance_w:.0f}W → auto"
+        else:
+            store["decision_reason"] = f"Balans pending: |net| {abs(net_w):.0f}W < {balance_w:.0f}W (hold {BALANCE_HOLD_SECONDS}s)"
         return
     else:
         store["balance_hold_start"] = None
 
-    # --- CATCH-ALL: return to auto if in standby without active condition ---
-    # If we reach here, no charge/discharge/balance condition is met.
-    # If the inverter is in standby (e.g. left over from a previous alarm),
-    # return it to auto so it can self-balance.
+    # --- CATCH-ALL: return to auto if in standby ---
     if current_mode == MODE_STANDBY and not store.get("force_charge_active"):
         await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
-        _LOGGER.info("Catch-all: standby → auto (no active condition, SOC=%.0f%%, surplus=%.0fW)", soc, surplus_w)
-
+        store["decision_reason"] = f"Catch-all: standby → auto (SOC {soc:.0f}%, surplus {surplus_w:.0f}W)"
+    else:
+        if not store.get("decision_reason"):
+            store["decision_reason"] = f"Auto: net {net_w:.0f}W, surplus {surplus_w:.0f}W, deficit {deficit_w:.0f}W, SOC {soc:.0f}%"
 
 async def _set_mode(hass: HomeAssistant, entity_id: str, mode: str):
     """Set the inverter mode via select entity."""

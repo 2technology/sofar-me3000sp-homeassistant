@@ -3,7 +3,7 @@
 > **HACS-compatible Home Assistant integratie voor slimme batterij-aansturing**
 > Gebaseerd op externe meetbronnen (slimme meter + PV), niet op interne Sofar CT-klemmen.
 
-[![Version](https://img.shields.io/badge/version-1.3.1-green)](#)
+[![Version](https://img.shields.io/badge/version-2.0.0-green)](#)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange)](#)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
 
@@ -294,6 +294,33 @@ Naast de ingebouwde automatie (HACS integratie) en de YAML package, zijn er ook 
 
 ---
 
+## 🎯 Strategie kiezen
+
+De integratie biedt 6 strategieën die je via de UI kunt kiezen:
+
+| Strategie | Wanneer | Werking |
+|---|---|---|
+| **Zelfconsumptie** | Default, veel PV | Laad bij surplus, ontlaad bij import |
+| **Peak-shaving** | Hele jaar | Ontlaad alleen als import > piekdrempel (bv 2500W) |
+| **Nachtbesparing** | 's Nachts geen PV | Geen discharge 22:00-06:00, bewaar batterij |
+| **Forceer laden** | Handmatig | Laad batterij nu |
+| **Forceer ontladen** | Handmatig | Ontlaad batterij nu |
+| **Auto** | Vakantie/uit | SOFAR bepaalt zelf |
+
+Wijzig via **Settings → Devices & Services → SOFAR → Strategy** of via het Control Center dashboard.
+
+> 💡 **Peak-shaving tip**: je leverancier kijkt op maandbasis naar de maximale capaciteit die je minstens 15 min onafgebroken verbrukt hebt. Stel de piekdrempel in op bv 2200W om je maandelijkse piek af te vlakken en je factuur te verlagen.
+
+## 📊 Control Center dashboard
+
+```text
+home-assistant/dashboards/sofar_me3000sp_control_center.yaml
+```
+
+Centraal controlepaneel met strategie-kiezer, live status, peak-tracking, beslissingslogica en instellingen.
+
+---
+
 ## Wat doet de automatie?
 
 | Situatie | Actie |
@@ -375,7 +402,7 @@ data:
 | `custom_components/sofar_me3000sp/` | **HACS custom integration** — UI-wizard, sensors, automations, services |
 | `home-assistant/packages/sofar_me3000sp.yaml` | Alternatief: drop-in YAML package (zonder custom integration) |
 | `home-assistant/packages/sofar_me3000sp_template_sensors_only.yaml` | Compacte template-sensors alleen (zonder automations) |
-| `home-assistant/dashboards/sofar_me3000sp_live_decision.yaml` | Live decision card met beslissingslogica + flow chips |
+| `home-assistant/dashboards/sofar_me3000sp_control_center.yaml` | **Control Center** — strategie, peak-tracking, instellingen |
 | `home-assistant/dashboards/sofar_me3000sp_mushroom_basic.yaml` | Eenvoudigere Mushroom dashboardkaart |
 | `esphome/sofar-me3000sp-esp32.yaml` | ESP32/MAX3485 firmware voor SOFAR control |
 | `esphome/secrets.yaml.example` | Voorbeeld secrets (kopieer naar secrets.yaml) |
