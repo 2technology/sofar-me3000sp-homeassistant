@@ -144,7 +144,7 @@ cards:
       - entity: sensor.sofar_me3000sp_controller_sofar_monthly_peak_w
         name: Maandelijkse piek (15-min gem.)
         icon: mdi:chart-line-variant
-      - entity: number.sofar_me3000sp_controller_sofar_peak_threshold_w
+      - entity: number.sofar_peak_threshold_w
         name: Piek drempel
         icon: mdi:tune-variant
     card_mod:
@@ -185,10 +185,10 @@ cards:
     title: "🌙 Nachtbesparing"
     show_header_toggle: false
     entities:
-      - entity: number.sofar_me3000sp_controller_sofar_night_start_hour
+      - entity: number.sofar_night_start_hour
         name: Start uur
         icon: mdi:weather-night
-      - entity: number.sofar_me3000sp_controller_sofar_night_end_hour
+      - entity: number.sofar_night_end_hour
         name: Eind uur
         icon: mdi:weather-sunny
     card_mod:
