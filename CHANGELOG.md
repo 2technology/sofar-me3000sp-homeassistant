@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.0.1 — 2026-07-01
+
+### Bugfixes
+- **`select.py`**: `async_get_last_state()` bestaat niet op `SelectEntity` → verwijderd, gebruikt `initial_option` default
+- **`sensor.py`**: 18 ontbrekende imports voor nieuwe strategy/peak/night constants → alle toegevoegd
+
 ## v2.0.0 — 2026-07-01
 
 ### 🎯 Nieuw: Strategie-systeem + Control Center

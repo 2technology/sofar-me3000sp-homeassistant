@@ -52,14 +52,8 @@ class SofarStrategySelect(SelectEntity):
         store["strategy_entity_id"] = self.entity_id
         store["strategy"] = self._strategy_key
 
-        # Restore last state
-        if (last := await self.async_get_last_state()) is not None:
-            for key, label in STRATEGY_LABELS.items():
-                if last.state == label:
-                    self._strategy_key = key
-                    self._attr_current_option = label
-                    store["strategy"] = key
-                    break
+        # State restoration: SelectEntity doesn't have async_get_last_state.
+        # The initial_option default is used on each restart.
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected strategy."""
