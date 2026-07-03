@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.1.0 — 2026-07-03
+
+### 🎯 Rate limiting + smoothing — oplaad/ontlaad stabiliteit
+
+#### Probleem
+De charge/discharge rate veranderde elke seconde drastisch (bv. 450→1003→1988→1958→1088W in 5 seconden). Oorzaak: de slimme meter update elke seconde → surplus verandert → integratie stuurt elke keer een nieuwe `number.set_value` naar de ESP32.
+
+#### Oplossing
+1. **Moving average smoothing**: surplus en deficit worden uitgemiddeld over de laatste 30 seconden (`SMOOTHING_WINDOW_SECONDS`). De rate wordt berekend op basis van dit gemiddelde, niet op de actuele piekwaarde.
+2. **Rate update throttle**: de rate wordt maximaal elke 60 seconden bijgewerkt (`RATE_UPDATE_MIN_INTERVAL`), niet bij elke state change.
+3. **Minimum change threshold**: de rate wordt alleen aangepast als het verschil > 200W is (`RATE_CHANGE_THRESHOLD_W`), om micro-aanpassingen te voorkomen.
+
+#### Nieuwe constanten
+- `RATE_UPDATE_MIN_INTERVAL = 60` — minimaal 60s tussen rate updates
+- `RATE_CHANGE_THRESHOLD_W = 200` — minimaal 200W verschil om rate te wijzigen
+- `SMOOTHING_WINDOW_SECONDS = 30` — 30s moving average window
+
+#### Nieuwe helper functies
+- `_smooth_value(store, key, value, now)` — moving average over SMOOTHING_WINDOW_SECONDS
+- `_should_update_rate(store, rate_key, new_rate, now)` — throttle + minimum change check
+
+#### Toegepast op
+- Zelfconsumptie charge (surplus-based)
+- Zelfconsumptie discharge (deficit-based)
+- Peak-shaving discharge (import-based)
+
 ## v2.0.1 — 2026-07-01
 
 ### Bugfixes

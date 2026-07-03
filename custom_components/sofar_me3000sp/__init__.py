@@ -97,6 +97,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "balance_hold_start": None,
         "force_charge_active": False,
         "force_charge_start": None,
+        "last_rate_update": 0,
+        "last_charge_rate": 0,
+        "last_discharge_rate": 0,
+        "surplus_history": [],
+        "deficit_history": [],
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -149,6 +154,30 @@ def _is_night_time(now: float, night_start: int, night_end: int) -> bool:
         return hour >= night_start or hour < night_end
     else:
         return night_start <= hour < night_end
+
+
+
+
+def _smooth_value(store: dict, key: str, value: float, now: float) -> float:
+    """Return a moving average over the last SMOOTHING_WINDOW_SECONDS."""
+    history = store.setdefault(key, [])
+    history.append((now, value))
+    cutoff = now - SMOOTHING_WINDOW_SECONDS
+    store[key] = [(t, v) for t, v in history if t >= cutoff]
+    if not store[key]:
+        return value
+    return sum(v for _, v in store[key]) / len(store[key])
+
+
+def _should_update_rate(store: dict, rate_key: str, new_rate: int, now: float) -> bool:
+    """Check if we should update the rate (throttle + minimum change)."""
+    last_update = store.get("last_rate_update", 0)
+    last_rate = store.get(rate_key, 0)
+    if now - last_update < RATE_UPDATE_MIN_INTERVAL:
+        return False
+    if abs(new_rate - last_rate) < RATE_CHANGE_THRESHOLD_W:
+        return False
+    return True
 
 
 def _get_entity_state(hass: HomeAssistant, entity_id: str, default=0.0):
@@ -308,8 +337,11 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
             discharge_w = min(max(0, excess_w + discharge_margin), DEFAULT_MAX_RATE)
             if discharge_w > 0:
                 await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_DISCHARGE)
-                await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
-                store["decision_reason"] = f"Peak-shaving: import {import_w:.0f}W > {peak_threshold:.0f}W → discharge @ {discharge_w}W"
+                if _should_update_rate(store, "last_discharge_rate", discharge_w, now):
+                    await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
+                    store["last_rate_update"] = now
+                    store["last_discharge_rate"] = discharge_w
+                store["decision_reason"] = f"Peak-shaving: import {import_w:.0f}W > {peak_threshold:.0f}W → discharge @ {store['last_discharge_rate']}W"
                 store["charge_hold_start"] = None
                 store["balance_hold_start"] = None
             return
@@ -360,36 +392,45 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
         # Fall through to self-consumption logic
 
     # === SELF-CONSUMPTION STRATEGY (default, also day-mode for night-save) ===
-    # --- CHARGE: surplus export ---
+    # --- CHARGE: surplus export (smoothed + rate-limited) ---
     if surplus_w > export_start and pv_w > pv_min and soc < soc_max_charge:
         if store.get("charge_hold_start") is None:
             store["charge_hold_start"] = now
         elif now - store["charge_hold_start"] >= CHARGE_HOLD_SECONDS:
-            charge_w = min(max(0, int(surplus_w - charge_margin)), DEFAULT_MAX_RATE)
+            # Use smoothed surplus for rate calculation
+            smooth_surplus = _smooth_value(store, "surplus_history", surplus_w, now)
+            charge_w = min(max(0, int(smooth_surplus - charge_margin)), DEFAULT_MAX_RATE)
             if charge_w > 0:
                 await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
-                await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], charge_w)
+                if _should_update_rate(store, "last_charge_rate", charge_w, now):
+                    await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], charge_w)
+                    store["last_rate_update"] = now
+                    store["last_charge_rate"] = charge_w
                 store["discharge_hold_start"] = None
                 store["balance_hold_start"] = None
-                store["decision_reason"] = f"Zelfconsumptie: surplus {surplus_w:.0f}W > {export_start:.0f}W, PV {pv_w:.0f}W > {pv_min:.0f}W → charge @ {charge_w}W"
+                store["decision_reason"] = f"Zelfconsumptie: surplus {surplus_w:.0f}W (avg {smooth_surplus:.0f}W) → charge @ {store['last_charge_rate']}W"
         else:
             store["decision_reason"] = f"Charge pending: surplus {surplus_w:.0f}W > {export_start:.0f}W (hold {CHARGE_HOLD_SECONDS}s)"
         return
     else:
         store["charge_hold_start"] = None
 
-    # --- DISCHARGE: import deficit ---
+    # --- DISCHARGE: import deficit (smoothed + rate-limited) ---
     if import_w > import_start and deficit_w > 0 and soc > soc_min_discharge:
         if store.get("discharge_hold_start") is None:
             store["discharge_hold_start"] = now
         elif now - store["discharge_hold_start"] >= DISCHARGE_HOLD_SECONDS:
-            discharge_w = min(max(0, int(deficit_w + discharge_margin)), DEFAULT_MAX_RATE)
+            smooth_deficit = _smooth_value(store, "deficit_history", deficit_w, now)
+            discharge_w = min(max(0, int(smooth_deficit + discharge_margin)), DEFAULT_MAX_RATE)
             if discharge_w > 0:
                 await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_DISCHARGE)
-                await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
+                if _should_update_rate(store, "last_discharge_rate", discharge_w, now):
+                    await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
+                    store["last_rate_update"] = now
+                    store["last_discharge_rate"] = discharge_w
                 store["charge_hold_start"] = None
                 store["balance_hold_start"] = None
-                store["decision_reason"] = f"Zelfconsumptie: import {import_w:.0f}W > {import_start:.0f}W → discharge @ {discharge_w}W"
+                store["decision_reason"] = f"Zelfconsumptie: import {import_w:.0f}W, deficit {deficit_w:.0f}W (avg {smooth_deficit:.0f}W) → discharge @ {store['last_discharge_rate']}W"
         else:
             store["decision_reason"] = f"Discharge pending: import {import_w:.0f}W > {import_start:.0f}W (hold {DISCHARGE_HOLD_SECONDS}s)"
         return

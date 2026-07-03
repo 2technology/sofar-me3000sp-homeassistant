@@ -7,6 +7,6 @@
   "after_dependencies": ["esphome"],
   "documentation": "http://192.168.1.80:3000/Mad_Science_Lab/sofar-me3000sp-homeassistant",
   "iot_class": "local_polling",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "requirements": []
 }
