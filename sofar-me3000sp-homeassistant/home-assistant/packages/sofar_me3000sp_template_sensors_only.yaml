@@ -1,0 +1,91 @@
+# =============================================================================
+# Home Assistant Template Sensors — SOFAR ME3000SP Externe-bron-sturing
+#
+# Bronnen:
+#   - sensor.electricity_meter_energieproductie  (kW, export)
+#   - sensor.electricity_meter_energieverbruik    (kW, import)
+#   - sensor.sunny_pv_power                        (W, SMA PV)
+#
+# Doel:
+#   - maak van de slimme meter een nette W-basis voor automation
+#   - bereken netto flow, surplus en deficit
+# =============================================================================
+
+template:
+  - sensor:
+      - name: "SOFAR Grid Export Power"
+        unique_id: sofar_grid_export_power_w
+        icon: mdi:transmission-tower-export
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: "W"
+        availability: >-
+          {{ states('sensor.electricity_meter_energieproductie') not in ['unknown', 'unavailable', 'none'] }}
+        state: >-
+          {{ (states('sensor.electricity_meter_energieproductie') | float(0) * 1000) | round(0) }}
+
+      - name: "SOFAR Grid Import Power"
+        unique_id: sofar_grid_import_power_w
+        icon: mdi:transmission-tower-import
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: "W"
+        availability: >-
+          {{ states('sensor.electricity_meter_energieverbruik') not in ['unknown', 'unavailable', 'none'] }}
+        state: >-
+          {{ (states('sensor.electricity_meter_energieverbruik') | float(0) * 1000) | round(0) }}
+
+      - name: "SOFAR Net Grid Power"
+        unique_id: sofar_net_grid_power_w
+        icon: mdi:home-lightning-bolt
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: "W"
+        availability: >-
+          {{ states('sensor.electricity_meter_energieproductie') not in ['unknown', 'unavailable', 'none']
+             and states('sensor.electricity_meter_energieverbruik') not in ['unknown', 'unavailable', 'none'] }}
+        state: >-
+          {% set export_w = states('sensor.electricity_meter_energieproductie') | float(0) * 1000 %}
+          {% set import_w = states('sensor.electricity_meter_energieverbruik') | float(0) * 1000 %}
+          {{ (export_w - import_w) | round(0) }}
+
+      - name: "SOFAR Grid Surplus Power"
+        unique_id: sofar_grid_surplus_power_w
+        icon: mdi:weather-sunny-arrow-right
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: "W"
+        availability: >-
+          {{ states('sensor.electricity_meter_energieproductie') not in ['unknown', 'unavailable', 'none']
+             and states('sensor.electricity_meter_energieverbruik') not in ['unknown', 'unavailable', 'none'] }}
+        state: >-
+          {% set export_w = states('sensor.electricity_meter_energieproductie') | float(0) * 1000 %}
+          {% set import_w = states('sensor.electricity_meter_energieverbruik') | float(0) * 1000 %}
+          {% set net_w = export_w - import_w %}
+          {{ [net_w, 0] | max | round(0) }}
+
+      - name: "SOFAR Grid Deficit Power"
+        unique_id: sofar_grid_deficit_power_w
+        icon: mdi:weather-sunny-clock
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: "W"
+        availability: >-
+          {{ states('sensor.electricity_meter_energieproductie') not in ['unknown', 'unavailable', 'none']
+             and states('sensor.electricity_meter_energieverbruik') not in ['unknown', 'unavailable', 'none'] }}
+        state: >-
+          {% set export_w = states('sensor.electricity_meter_energieproductie') | float(0) * 1000 %}
+          {% set import_w = states('sensor.electricity_meter_energieverbruik') | float(0) * 1000 %}
+          {% set net_w = export_w - import_w %}
+          {{ [0 - net_w, 0] | max | round(0) }}
+
+      - name: "SOFAR SMA PV Power"
+        unique_id: sofar_sma_pv_power_w
+        icon: mdi:solar-power
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: "W"
+        availability: >-
+          {{ states('sensor.sunny_pv_power') not in ['unknown', 'unavailable', 'none'] }}
+        state: >-
+          {{ states('sensor.sunny_pv_power') | float(0) | round(0) }}

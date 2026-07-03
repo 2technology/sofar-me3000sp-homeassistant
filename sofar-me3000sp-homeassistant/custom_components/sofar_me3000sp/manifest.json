@@ -1,0 +1,13 @@
+{
+  "domain": "sofar_me3000sp",
+  "name": "SOFAR ME3000SP Controller",
+  "codeowners": ["@2technology"],
+  "config_flow": true,
+  "dependencies": [],
+  "after_dependencies": ["esphome"],
+  "documentation": "https://github.com/2technology/sofar-me3000sp-homeassistant",
+  "issue_tracker": "https://github.com/2technology/sofar-me3000sp-homeassistant/issues",
+  "iot_class": "local_polling",
+  "version": "2.0.1",
+  "requirements": []
+}

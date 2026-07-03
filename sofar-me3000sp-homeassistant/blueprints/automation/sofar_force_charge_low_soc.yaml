@@ -1,0 +1,101 @@
+blueprint:
+  name: "SOFAR ME3000SP: Force Charge on Critical Low SOC"
+  description: >
+    Force-charge the battery when SOC drops below a critical threshold,
+    regardless of PV/export conditions. Stops when target SOC is reached
+    or after a timeout.
+
+    Part of the SOFAR ME3000SP Controller blueprints.
+  domain: automation
+  source_url: https://github.com/2technology/sofar-me3000sp-homeassistant/blob/master/blueprints/automation/sofar_force_charge_low_soc.yaml
+  input:
+    soc_entity:
+      name: "Battery SOC (%)"
+      selector:
+        entity:
+          domain: sensor
+    fault_entity:
+      name: "Fault Messages"
+      selector:
+        entity:
+          domain: sensor
+    mode_entity:
+      name: "SOFAR Mode Select"
+      selector:
+        entity:
+          domain: select
+    charge_rate_entity:
+      name: "Charge Rate Number"
+      selector:
+        entity:
+          domain: number
+    soc_force_charge:
+      name: "SOC Force Charge Threshold (%)"
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 50
+          step: 1
+          unit_of_measurement: "%"
+    soc_force_target:
+      name: "SOC Force Charge Target (%)"
+      default: 50
+      selector:
+        number:
+          min: 20
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+    force_charge_rate:
+      name: "Force Charge Rate (W)"
+      default: 1500
+      selector:
+        number:
+          min: 100
+          max: 3000
+          step: 50
+          unit_of_measurement: W
+    timeout:
+      name: "Force Charge Timeout (hours)"
+      default: 4
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          unit_of_measurement: h
+
+mode: restart
+trigger:
+  - platform: numeric_state
+    entity_id: !input soc_entity
+    below: !input soc_force_charge
+condition:
+  - condition: state
+    entity_id: !input fault_entity
+    state: "OK"
+action:
+  - variables:
+      force_rate: "{{ !input force_charge_rate }}"
+  - service: select.select_option
+    target:
+      entity_id: !input mode_entity
+    data:
+      option: "charge"
+  - service: number.set_value
+    target:
+      entity_id: !input charge_rate_entity
+    data:
+      value: "{{ force_rate }}"
+  - wait_for_trigger:
+      - platform: numeric_state
+        entity_id: !input soc_entity
+        above: !input soc_force_target
+    timeout:
+      hours: !input timeout
+  - service: select.select_option
+    target:
+      entity_id: !input mode_entity
+    data:
+      option: "auto"

@@ -1,0 +1,237 @@
+# =============================================================================
+# SOFAR ME3000SP — Control Center Dashboard
+# Vereist: HACS + Mushroom Cards
+# Optioneel: card-mod (voor glow/kleuraccenten)
+#
+# Dit is het centrale controlepaneel voor de batterijstrategie.
+# Toont: strategie-kiezer, live status, peak-shaving tracking,
+# beslissingslogica, instellingen, en dagstatistieken.
+#
+# Gebruik: plak de inhoud vanaf `type: vertical-stack` in een Manual card.
+# =============================================================================
+
+type: vertical-stack
+cards:
+  # --- TITEL ---
+  - type: custom:mushroom-template-card
+    entity: select.sofar_me3000sp_controller_sofar_strategy
+    primary: "🔋 SOFAR ME3000SP — Control Center"
+    secondary: "{{ states('sensor.sofar_me3000sp_controller_sofar_strategy_status') }}"
+    icon: mdi:home-battery
+    icon_color: green
+    layout: horizontal
+    fill_container: true
+    multiline_secondary: true
+    tap_action:
+      action: none
+    card_mod:
+      style: |
+        ha-card {
+          background: linear-gradient(135deg, rgba(14,26,43,0.96), rgba(20,40,65,0.92));
+          border: 1px solid rgba(57,255,138,0.35);
+          box-shadow: 0 0 18px rgba(57,255,138,0.16);
+          border-radius: 22px;
+          padding: 10px;
+        }
+        .multiline-text {
+          font-size: 12px;
+          opacity: 0.7;
+          font-family: monospace;
+        }
+
+  # --- STRATEGIE KIEZER ---
+  - type: entities
+    title: "📋 Strategie"
+    show_header_toggle: false
+    entities:
+      - entity: select.sofar_me3000sp_controller_sofar_strategy
+        name: Actieve strategie
+    card_mod:
+      style: |
+        ha-card {
+          background: rgba(14,26,43,0.8);
+          border: 1px solid rgba(57,255,138,0.2);
+          border-radius: 16px;
+        }
+
+  # --- LIVE STATUS CHIPS ---
+  - type: custom:mushroom-chips-card
+    alignment: center
+    chips:
+      - type: template
+        entity: sensor.sofar_me3000sp_controller_sofar_flow_direction
+        icon: >-
+          {% set d = states('sensor.sofar_me3000sp_controller_sofar_flow_direction') %}
+          {% if d == 'charging' %}mdi:battery-arrow-up
+          {% elif d == 'discharging' %}mdi:battery-arrow-down
+          {% elif d == 'standby' %}mdi:pause-circle
+          {% elif d == 'alarm' %}mdi:alert-octagon
+          {% else %}mdi:help-circle{% endif %}
+        icon_color: >-
+          {% set d = states('sensor.sofar_me3000sp_controller_sofar_flow_direction') %}
+          {% if d == 'charging' %}green
+          {% elif d == 'discharging' %}amber
+          {% elif d == 'alarm' %}red
+          {% else %}grey{% endif %}
+        content: "{{ states('sensor.sofar_me3000sp_controller_sofar_flow_direction') }}"
+      - type: template
+        entity: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc
+        icon: mdi:battery
+        icon_color: >-
+          {% set s = states('sensor.sofar_me3000sp_sofar_me3000sp_battery_soc') | float(0) %}
+          {% if s > 60 %}green{% elif s > 30 %}yellow{% else %}red{% endif %}
+        content: "🔋 {{ s | round(0) }}%"
+      - type: template
+        entity: sensor.sofar_me3000sp_sofar_me3000sp_battery_power
+        icon: mdi:lightning-bolt
+        icon_color: blue
+        content: "⚡ {{ states('sensor.sofar_me3000sp_sofar_me3000sp_battery_power') | float(0) | round(0) }}W"
+      - type: template
+        entity: sensor.sofar_me3000sp_controller_sofar_grid_import_power
+        icon: mdi:transmission-tower-import
+        icon_color: >-
+          {% if states('sensor.sofar_me3000sp_controller_sofar_grid_import_power') | float(0) > 0 %}red{% else %}disabled{% endif %}
+        content: "📥 {{ states('sensor.sofar_me3000sp_controller_sofar_grid_import_power') | float(0) | round(0) }}W"
+      - type: template
+        entity: sensor.sofar_me3000sp_controller_sofar_sma_pv_power
+        icon: mdi:solar-power
+        icon_color: >-
+          {% if states('sensor.sofar_me3000sp_controller_sofar_sma_pv_power') | float(0) > 0 %}orange{% else %}disabled{% endif %}
+        content: "☀️ {{ states('sensor.sofar_me3000sp_controller_sofar_sma_pv_power') | float(0) | round(0) }}W"
+
+  # --- MODE + SOC GAUGE ---
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: custom:mushroom-template-card
+        entity: select.sofar_me3000sp_sofar_me3000sp_mode
+        primary: "Mode"
+        secondary: "{{ states('select.sofar_me3000sp_sofar_me3000sp_mode') }}"
+        icon: >-
+          {% set m = states('select.sofar_me3000sp_sofar_me3000sp_mode') %}
+          {% if m == 'charge' %}mdi:battery-arrow-up
+          {% elif m == 'discharge' %}mdi:battery-arrow-down
+          {% elif m == 'auto' %}mdi:refresh-auto
+          {% elif m == 'standby' %}mdi:pause-circle
+          {% else %}mdi:help-circle{% endif %}
+        icon_color: >-
+          {% set m = states('select.sofar_me3000sp_sofar_me3000sp_mode') %}
+          {% if m == 'charge' %}green
+          {% elif m == 'discharge' %}amber
+          {% elif m == 'auto' %}blue
+          {% elif m == 'standby' %}grey
+          {% else %}disabled{% endif %}
+        layout: vertical
+        tap_action:
+          action: more-info
+      - type: gauge
+        entity: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc
+        name: SOC
+        min: 0
+        max: 100
+        needle: true
+        severity:
+          green: 60
+          yellow: 30
+          red: 10
+
+  # --- PEAK-SHAVING TRACKING ---
+  - type: entities
+    title: "📊 Peak-shaving"
+    show_header_toggle: false
+    entities:
+      - entity: sensor.sofar_me3000sp_controller_sofar_monthly_peak_w
+        name: Maandelijkse piek (15-min gem.)
+        icon: mdi:chart-line-variant
+      - entity: number.sofar_peak_threshold_w
+        name: Piek drempel
+        icon: mdi:tune-variant
+    card_mod:
+      style: |
+        ha-card {
+          background: rgba(14,26,43,0.8);
+          border: 1px solid rgba(0,212,255,0.2);
+          border-radius: 16px;
+        }
+
+  # --- BESLISSINGSLOGICA ---
+  - type: custom:mushroom-template-card
+    entity: sensor.sofar_me3000sp_controller_sofar_decision_reason
+    primary: "🧠 Beslissingslogica"
+    secondary: "{{ states('sensor.sofar_me3000sp_controller_sofar_decision_reason') }}"
+    icon: mdi:clipboard-text-clock
+    icon_color: teal
+    layout: vertical
+    fill_container: true
+    multiline_secondary: true
+    tap_action:
+      action: more-info
+    card_mod:
+      style: |
+        ha-card {
+          background: rgba(14,26,43,0.6);
+          border: 1px solid rgba(0,212,255,0.2);
+          border-radius: 16px;
+        }
+        .multiline-text {
+          font-size: 13px;
+          font-family: monospace;
+          line-height: 1.4;
+        }
+
+  # --- NIGHT-SAVE INSTELLINGEN ---
+  - type: entities
+    title: "🌙 Nachtbesparing"
+    show_header_toggle: false
+    entities:
+      - entity: number.sofar_night_start_hour
+        name: Start uur
+        icon: mdi:weather-night
+      - entity: number.sofar_night_end_hour
+        name: Eind uur
+        icon: mdi:weather-sunny
+    card_mod:
+      style: |
+        ha-card {
+          background: rgba(14,26,43,0.8);
+          border: 1px solid rgba(255,92,138,0.2);
+          border-radius: 16px;
+        }
+
+  # --- LAAD/ONTLAAD SLIDERS ---
+  - type: entities
+    title: "⚡ Laden / Ontladen"
+    show_header_toggle: false
+    entities:
+      - entity: number.sofar_me3000sp_sofar_me3000sp_charge_rate
+        name: Laad vermogen
+        icon: mdi:battery-plus
+      - entity: number.sofar_me3000sp_sofar_me3000sp_discharge_rate
+        name: Ontlaad vermogen
+        icon: mdi:battery-minus
+
+  # --- DAGSTATISTIEKEN ---
+  - type: entities
+    title: "📈 Dagstatistieken"
+    show_header_toggle: false
+    entities:
+      - entity: sensor.sofar_me3000sp_sofar_me3000sp_battery_charge_today
+        name: Geladen vandaag
+        icon: mdi:battery-charging
+      - entity: sensor.sofar_me3000sp_sofar_me3000sp_battery_discharge_today
+        name: Ontladen vandaag
+        icon: mdi:battery-minus
+      - entity: sensor.sofar_me3000sp_sofar_me3000sp_pv_generation_today
+        name: PV vandaag
+        icon: mdi:solar-power
+      - entity: sensor.sofar_me3000sp_sofar_me3000sp_consumption_today
+        name: Verbruik vandaag
+        icon: mdi:home-lightning-bolt
+    card_mod:
+      style: |
+        ha-card {
+          background: rgba(14,26,43,0.8);
+          border: 1px solid rgba(57,255,138,0.15);
+          border-radius: 16px;
+        }

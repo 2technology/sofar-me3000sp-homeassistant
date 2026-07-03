@@ -1,0 +1,173 @@
+# SOFAR ME3000SP — Wall Panel Dashboard
+# Vereist: HACS + Mushroom Cards
+# Optioneel maar aanbevolen: card-mod voor de kleuraccenten
+# Zonder card-mod werken de kleurranden en glow niet, maar de kaart blijft functioneel.
+# Ontworpen voor de SOFAR ME3000SP Controller custom integration (HACS/handmatig).
+# Bij gebruik van de YAML package moet je de sensor/helper-namen handmatig aanpassen.
+# Gebruik: plak de inhoud onder `cards:` of als sectie in een YAML-dashboard.
+
+wall_panel:
+  type: vertical-stack
+  cards:
+    - type: custom:mushroom-template-card
+      entity: sensor.sofar_flow_direction
+      primary: >-
+        {% set d = states('sensor.sofar_flow_direction') %}
+        {% if d == 'charging' %}BATTERIJ LADEN{% elif d == 'discharging' %}BATTERIJ ONTLADEN{% elif d == 'exporting' %}NETEXPORT{% elif d == 'importing' %}NETIMPORT{% elif d == 'balanced' %}ENERGIEBALANS{% elif d == 'standby' %}STANDBY{% elif d == 'alarm' %}ALARM{% else %}STATUS ONBEKEND{% endif %}
+      secondary: >-
+        PV {{ states('sensor.sofar_sma_pv_power') }} W · Huis {{ states('sensor.sofar_house_load_power') }} W · Netto {{ states('sensor.sofar_net_grid_power') }} W
+      icon: >-
+        {% set d = states('sensor.sofar_flow_direction') %}
+        {% if d == 'charging' %}mdi:battery-arrow-up{% elif d == 'discharging' %}mdi:battery-arrow-down{% elif d == 'exporting' %}mdi:transmission-tower-export{% elif d == 'importing' %}mdi:transmission-tower-import{% elif d == 'balanced' %}mdi:scale-balance{% elif d == 'standby' %}mdi:pause-circle{% elif d == 'alarm' %}mdi:alert-octagon{% else %}mdi:help-circle{% endif %}
+      icon_color: >-
+        {% set d = states('sensor.sofar_flow_direction') %}
+        {% if d == 'charging' %}green{% elif d == 'discharging' %}amber{% elif d == 'exporting' %}blue{% elif d == 'importing' %}red{% elif d == 'balanced' %}teal{% elif d == 'standby' %}grey{% elif d == 'alarm' %}red{% else %}disabled{% endif %}
+      layout: horizontal
+      fill_container: true
+      multiline_secondary: false
+      tap_action:
+        action: more-info
+      card_mod:
+        style: |
+          ha-card {
+            background: linear-gradient(135deg, rgba(14,26,43,0.96), rgba(20,40,65,0.92));
+            border: 1px solid rgba(57,255,138,0.35);
+            box-shadow: 0 0 18px rgba(57,255,138,0.16);
+            border-radius: 22px;
+            padding: 8px;
+          }
+
+    - type: custom:mushroom-chips-card
+      alignment: center
+      chips:
+        - type: template
+          entity: binary_sensor.sofar_charging_active
+          icon: mdi:battery-arrow-up
+          icon_color: >-
+            {{ 'green' if is_state('binary_sensor.sofar_charging_active', 'on') else 'disabled' }}
+          content: >-
+            Laden {{ states('number.sofar_me3000sp_sofar_me3000sp_charge_rate') | float(0) | round(0) }} W
+          tap_action:
+            action: more-info
+        - type: template
+          entity: binary_sensor.sofar_discharging_active
+          icon: mdi:battery-arrow-down
+          icon_color: >-
+            {{ 'amber' if is_state('binary_sensor.sofar_discharging_active', 'on') else 'disabled' }}
+          content: >-
+            Ontladen {{ states('number.sofar_me3000sp_sofar_me3000sp_discharge_rate') | float(0) | round(0) }} W
+          tap_action:
+            action: more-info
+        - type: template
+          entity: binary_sensor.sofar_alarm_active
+          icon: mdi:alert-circle
+          icon_color: >-
+            {{ 'red' if is_state('binary_sensor.sofar_alarm_active', 'on') else 'green' }}
+          content: >-
+            {{ 'Alarm' if is_state('binary_sensor.sofar_alarm_active', 'on') else 'OK' }}
+          tap_action:
+            action: more-info
+
+    - type: grid
+      columns: 2
+      square: false
+      cards:
+        - type: custom:mushroom-template-card
+          entity: sensor.sofar_sma_pv_power
+          primary: PV
+          secondary: "{{ states('sensor.sofar_sma_pv_power') }} W"
+          icon: mdi:solar-power
+          icon_color: yellow
+          layout: vertical
+          fill_container: true
+          card_mod:
+            style: |
+              ha-card { border-left: 4px solid #fbbf24; }
+
+        - type: custom:mushroom-template-card
+          entity: sensor.sofar_house_load_power
+          primary: Huislast
+          secondary: "{{ states('sensor.sofar_house_load_power') }} W"
+          icon: mdi:home-lightning-bolt-outline
+          icon_color: purple
+          layout: vertical
+          fill_container: true
+          card_mod:
+            style: |
+              ha-card { border-left: 4px solid #a78bfa; }
+
+        - type: custom:mushroom-template-card
+          entity: sensor.sofar_grid_export_power
+          primary: Export
+          secondary: "{{ states('sensor.sofar_grid_export_power') }} W"
+          icon: mdi:transmission-tower-export
+          icon_color: blue
+          layout: vertical
+          fill_container: true
+          card_mod:
+            style: |
+              ha-card { border-left: 4px solid #38bdf8; }
+
+        - type: custom:mushroom-template-card
+          entity: sensor.sofar_grid_import_power
+          primary: Import
+          secondary: "{{ states('sensor.sofar_grid_import_power') }} W"
+          icon: mdi:transmission-tower-import
+          icon_color: red
+          layout: vertical
+          fill_container: true
+          card_mod:
+            style: |
+              ha-card { border-left: 4px solid #fb7185; }
+
+    - type: grid
+      columns: 2
+      square: false
+      cards:
+        - type: gauge
+          entity: sensor.sofar_me3000sp_sofar_me3000sp_battery_soc
+          name: Batterij
+          min: 0
+          max: 100
+          needle: true
+          severity:
+            green: 60
+            yellow: 30
+            red: 10
+
+        - type: custom:mushroom-template-card
+          entity: select.sofar_me3000sp_sofar_me3000sp_mode
+          primary: Inverter
+          secondary: >-
+            Mode {{ states('select.sofar_me3000sp_sofar_me3000sp_mode') }} · Fault {{ states('sensor.sofar_me3000sp_sofar_me3000sp_fault_messages') }}
+          icon: mdi:power-cycle
+          icon_color: >-
+            {% set fault = states('sensor.sofar_me3000sp_sofar_me3000sp_fault_messages') %}
+            {% if fault != 'OK' %}red{% elif states('select.sofar_me3000sp_sofar_me3000sp_mode') == 'charge' %}green{% elif states('select.sofar_me3000sp_sofar_me3000sp_mode') == 'discharge' %}amber{% elif states('select.sofar_me3000sp_sofar_me3000sp_mode') == 'standby' %}grey{% else %}teal{% endif %}
+          layout: vertical
+          fill_container: true
+          tap_action:
+            action: more-info
+
+    - type: custom:mushroom-template-card
+      entity: sensor.sofar_visual_summary
+      primary: Flow samenvatting
+      secondary: "{{ states('sensor.sofar_visual_summary') }}"
+      icon: mdi:chart-box-outline
+      icon_color: teal
+      multiline_secondary: true
+      fill_container: true
+
+    - type: history-graph
+      title: Energieflow — 24 uur
+      hours_to_show: 24
+      refresh_interval: 60
+      entities:
+        - entity: sensor.sofar_sma_pv_power
+          name: PV
+        - entity: sensor.sofar_grid_export_power
+          name: Export
+        - entity: sensor.sofar_grid_import_power
+          name: Import
+        - entity: sensor.sofar_net_grid_power
+          name: Netto

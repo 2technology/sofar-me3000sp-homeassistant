@@ -1,0 +1,139 @@
+blueprint:
+  name: "SOFAR ME3000SP: Charge on Export Surplus"
+  description: >
+    Charge the battery when there is real export surplus and sufficient PV production.
+
+    Uses external smart meter + PV data as truth source — not internal Sofar CT clamps.
+
+    Part of the SOFAR ME3000SP Controller blueprints.
+  domain: automation
+  source_url: https://github.com/2technology/sofar-me3000sp-homeassistant/blob/master/blueprints/automation/sofar_charge_on_export.yaml
+  input:
+    export_entity:
+      name: "Smart Meter Export (kW)"
+      selector:
+        entity:
+          domain: sensor
+    import_entity:
+      name: "Smart Meter Import (kW)"
+      selector:
+        entity:
+          domain: sensor
+    pv_entity:
+      name: "PV Power (W)"
+      selector:
+        entity:
+          domain: sensor
+    soc_entity:
+      name: "Battery SOC (%)"
+      selector:
+        entity:
+          domain: sensor
+    fault_entity:
+      name: "Fault Messages"
+      selector:
+        entity:
+          domain: sensor
+    mode_entity:
+      name: "SOFAR Mode Select"
+      selector:
+        entity:
+          domain: select
+    charge_rate_entity:
+      name: "Charge Rate Number"
+      selector:
+        entity:
+          domain: number
+    export_start_w:
+      name: "Export Start Threshold (W)"
+      default: 400
+      selector:
+        number:
+          min: 0
+          max: 2000
+          step: 50
+          unit_of_measurement: W
+    pv_min_w:
+      name: "Minimum PV Power (W)"
+      default: 700
+      selector:
+        number:
+          min: 0
+          max: 5000
+          step: 50
+          unit_of_measurement: W
+    soc_max_charge:
+      name: "Max SOC for Charging (%)"
+      default: 95
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+    charge_margin_w:
+      name: "Charge Margin (W)"
+      default: 150
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 25
+          unit_of_measurement: W
+    max_rate:
+      name: "Maximum Charge Rate (W)"
+      default: 3000
+      selector:
+        number:
+          min: 100
+          max: 3000
+          step: 50
+          unit_of_measurement: W
+    hold_time:
+      name: "Hold Time (seconds)"
+      default: 300
+      selector:
+        number:
+          min: 0
+          max: 3600
+          step: 30
+          unit_of_measurement: s
+
+mode: restart
+trigger:
+  - platform: template
+    value_template: >-
+      {% set export_w = states('!input export_entity') | float(0) * 1000 %}
+      {% set import_w = states('!input import_entity') | float(0) * 1000 %}
+      {% set surplus_w = [export_w - import_w, 0] | max %}
+      {% set export_start = !input export_start_w %}
+      {% set pv_min = !input pv_min_w %}
+      {% set soc_max = !input soc_max_charge %}
+      {{ surplus_w > export_start
+         and states('!input pv_entity') | float(0) > pv_min
+         and states('!input soc_entity') | float(0) < soc_max }}
+    for:
+      seconds: !input hold_time
+condition:
+  - condition: state
+    entity_id: !input fault_entity
+    state: "OK"
+action:
+  - variables:
+      export_w: "{{ states('!input export_entity') | float(0) * 1000 }}"
+      import_w: "{{ states('!input import_entity') | float(0) * 1000 }}"
+      net_w: "{{ export_w - import_w }}"
+      margin_w: "{{ !input charge_margin_w }}"
+      charge_w: "{{ [net_w - margin_w, 0] | max | round(0) }}"
+  - condition: template
+    value_template: "{{ charge_w > 0 }}"
+  - service: select.select_option
+    target:
+      entity_id: !input mode_entity
+    data:
+      option: "charge"
+  - service: number.set_value
+    target:
+      entity_id: !input charge_rate_entity
+    data:
+      value: "{{ [charge_w, !input max_rate] | min }}"

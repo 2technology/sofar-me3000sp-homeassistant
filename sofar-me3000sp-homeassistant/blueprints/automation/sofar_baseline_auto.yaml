@@ -1,0 +1,28 @@
+blueprint:
+  name: "SOFAR ME3000SP: Baseline Auto at Sunrise"
+  description: >
+    Set the inverter to auto mode shortly after sunrise as a neutral baseline.
+
+    Part of the SOFAR ME3000SP Controller blueprints.
+  domain: automation
+  source_url: https://github.com/2technology/sofar-me3000sp-homeassistant/blob/master/blueprints/automation/sofar_baseline_auto.yaml
+  input:
+    mode_entity:
+      name: "SOFAR Mode Select"
+      description: "The select entity that controls the inverter mode"
+      selector:
+        entity:
+          domain: select
+
+trigger:
+  - platform: sun
+    event: sunrise
+    offset: "00:20:00"
+
+mode: single
+action:
+  - service: select.select_option
+    target:
+      entity_id: !input mode_entity
+    data:
+      option: "auto"
