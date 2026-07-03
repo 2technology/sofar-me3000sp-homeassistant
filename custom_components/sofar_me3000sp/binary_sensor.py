@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
     BINARY_ALARM_ACTIVE,
+    BINARY_PEAK_RISK,
     BINARY_BALANCED_GRID,
     BINARY_CHARGING_ACTIVE,
     BINARY_DISCHARGING_ACTIVE,
@@ -23,7 +25,10 @@ from .const import (
     CONF_SOFAR_MODE_ENTITY,
     DEFAULT_BALANCE_W,
     DOMAIN,
+    DEFAULT_PEAK_THRESHOLD_W,
     NUMBER_BALANCE_W,
+    NUMBER_PEAK_THRESHOLD_W,
+    SIGNAL_UPDATE,
 )
 from .entity import _get_device_info
 from .number import _get_number_helper
@@ -43,6 +48,7 @@ async def async_setup_entry(
         SofarBinarySensor(hass, entry, BINARY_IMPORTING, "SOFAR Importing", "mdi:transmission-tower-import", "importing"),
         SofarBinarySensor(hass, entry, BINARY_BALANCED_GRID, "SOFAR Balanced Grid", "mdi:scale-balance", "balanced"),
         SofarBinarySensor(hass, entry, BINARY_ALARM_ACTIVE, "SOFAR Alarm Active", "mdi:alert-circle", "alarm"),
+        SofarPeakRiskBinarySensor(hass, entry),
     ]
     async_add_entities(entities)
 
@@ -116,3 +122,47 @@ class SofarBinarySensor(BinarySensorEntity):
         elif self._sensor_type == "alarm":
             self._attr_available = fault_state is not None
             self._attr_is_on = fault.lower() not in ("ok", "unavailable", "unknown", "")
+
+class SofarPeakRiskBinarySensor(BinarySensorEntity):
+    """On when the projected clock-quarter average exceeds the peak threshold.
+
+    Direct trigger for notifications: this is the moment the running
+    quarter is on course to raise your monthly capacity peak.
+    """
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:alert-decagram"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self._attr_unique_id = f"{DOMAIN}_{BINARY_PEAK_RISK}"
+        self._attr_name = "SOFAR Peak Risk"
+        self._entry = entry
+        self._hass = hass
+        self._attr_is_on = False
+        self._attr_available = True
+        self._attr_device_info = _get_device_info(entry)
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self._hass, f"{SIGNAL_UPDATE}_{self._entry.entry_id}", self._on_update
+            )
+        )
+        self._update_state()
+
+    @callback
+    def _on_update(self) -> None:
+        self._update_state()
+        self.async_write_ha_state()
+
+    def _update_state(self) -> None:
+        store = self._hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {})
+        projected = store.get("q_projected_w")
+        threshold = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_PEAK_THRESHOLD_W, DEFAULT_PEAK_THRESHOLD_W)
+        self._attr_is_on = projected is not None and projected > threshold
+        self._attr_extra_state_attributes = {
+            "projected_w": projected,
+            "threshold_w": threshold,
+            "quarter_remaining_s": store.get("q_remaining_s"),
+        }

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from homeassistant.components.number import NumberEntity, NumberMode
+from homeassistant.components.number import NumberMode, RestoreNumber
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -90,7 +90,7 @@ def _get_number_helper(hass: HomeAssistant, entry_id: str, helper_id: str, defau
         return default
 
 
-class SofarNumberHelper(NumberEntity):
+class SofarNumberHelper(RestoreNumber):
     """A number helper for tuning automation thresholds."""
 
     _attr_mode = NumberMode.BOX
@@ -122,12 +122,15 @@ class SofarNumberHelper(NumberEntity):
         """Restore previous value and register entity_id mapping."""
         await super().async_added_to_hass()
         self._attr_device_info = _get_device_info(self._entry)
+
+        last = await self.async_get_last_number_data()
+        if last is not None and last.native_value is not None:
+            value = max(self._attr_native_min_value, min(last.native_value, self._attr_native_max_value))
+            self._attr_native_value = value
+
         store = self.hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
         mapping = store.setdefault("number_entity_ids", {})
         mapping[self._attr_unique_id] = self.entity_id
-        # State restoration is handled by initial_value in __init__.
-        # HA NumberEntity with restore_value=true in ESPHome handles its own restore;
-        # these HA-side helpers use the initial_value default on each HA restart.
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

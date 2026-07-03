@@ -7,7 +7,7 @@ blueprint:
 
     Part of the SOFAR ME3000SP Controller blueprints.
   domain: automation
-  source_url: https://github.com/2technology/sofar-me3000sp-homeassistant/blob/master/blueprints/automation/sofar_discharge_on_import.yaml
+  source_url: https://github.com/2technology/sofar-me3000sp-homeassistant/blob/main/blueprints/automation/sofar_discharge_on_import.yaml
   input:
     export_entity:
       name: "Smart Meter Export (kW)"

@@ -1,5 +1,67 @@
 # Changelog
 
+## v2.2.0 — 2026-07-03
+
+### Kritieke fixes
+- **NameError gefixt**: `SMOOTHING_WINDOW_SECONDS`, `RATE_UPDATE_MIN_INTERVAL` en `RATE_CHANGE_THRESHOLD_W` werden gebruikt maar niet geïmporteerd in `__init__.py`. Hierdoor crashten de charge/discharge-paden van zelfconsumptie volledig en werd bij peak-shaving de discharge-rate nooit ingesteld.
+- **Decision Reason = single source of truth**: de sensor las de store niet maar herimplementeerde de logica (zonder strategie-kennis). Nu rapporteert hij exact wat de automation besliste, met attributen (`strategy`, `active_hold`, `hold_remaining_s`, kwartierdata).
+- **Nachtbesparing → standby**: nachtmodus zette `auto`, waarin de SOFAR 's nachts gewoon ontlaadt. Nu `standby` (laden op surplus en force-charge blijven werken).
+- **Persistentie na herstart**: strategie (`RestoreEntity`) en alle number-helpers (`RestoreNumber`) overleven nu een HA-herstart.
+- **Listener-leak gefixt**: automation-listeners worden opgeruimd bij unload/reload; geen dubbele loops meer.
+
+### Kwartierpiek — capaciteitstarief-correct
+- Nieuwe klok-kwartier-tracker (:00/:15/:30/:45, zoals Fluvius meet): tijdgewogen integratie van importvermogen, maandpiek op basis van afgesloten kwartieren, maand-rollover, persistent via `RestoreSensor`.
+- **Peak-shaving stuurt nu op het geprojecteerde kwartiergemiddelde** i.p.v. momentaan vermogen: spikes worden genegeerd, sluipende kwartieroverschrijdingen worden wél afgevangen, en de discharge-rate is exact wat nodig is (batterijvriendelijk).
+- Eerlijke reden wanneer de batterij op minimum-SOC zit terwijl de projectie boven de drempel ligt.
+
+### Nieuwe entiteiten
+- `sensor.sofar_quarter_time_remaining` — tijd tot de kwartiergrens (attribuut: eindtijd, mm:ss)
+- `sensor.sofar_quarter_avg_w` — tijdgewogen lopend kwartiergemiddelde
+- `sensor.sofar_quarter_projected_w` — projectie bij aanhoudend vermogen
+- `sensor.sofar_quarter_budget_w` — hoeveel W je de rest van het kwartier nog mag trekken
+- `binary_sensor.sofar_peak_risk` — aan zodra projectie > drempel (notificatie-trigger)
+
+### Overige verbeteringen
+- Charge- en discharge-throttle gescheiden (blokkeerden elkaar via één gedeelde timestamp)
+- Mode wordt alleen gezet als hij wijzigt (geen Modbus-spam meer bij elke meterupdate)
+- Smoothing-window 30 s → 120 s en continu gevuld i.p.v. alleen in het actieve pad
+- Hold-countdowns zichtbaar in decision reasons (m:ss)
+
+## v2.1.1 — 2026-07-03
+
+### Gewijzigd
+- **Migratie van Forgejo naar GitHub**: alle URLs bijgewerkt naar `https://github.com/2technology/sofar-me3000sp-homeassistant`
+- `manifest.json`: codeowners → `@2technology`, documentation + issue_tracker → GitHub
+- `LICENSE`: volledige MIT tekst met copyright "Mad Science Lab (2technology)"
+- Blueprints `source_url` → GitHub URLs
+- `INSTALLATIE.md` → GitHub URLs
+
+## v2.1.0 — 2026-07-03
+
+### 🎯 Rate limiting + smoothing — oplaad/ontlaad stabiliteit
+
+#### Probleem
+De charge/discharge rate veranderde elke seconde drastisch (bv. 450→1003→1988→1958→1088W in 5 seconden). Oorzaak: de slimme meter update elke seconde → surplus verandert → integratie stuurt elke keer een nieuwe `number.set_value` naar de ESP32.
+
+#### Oplossing
+1. **Moving average smoothing**: surplus en deficit worden uitgemiddeld over de laatste 30 seconden (`SMOOTHING_WINDOW_SECONDS`). De rate wordt berekend op basis van dit gemiddelde, niet op de actuele piekwaarde.
+2. **Rate update throttle**: de rate wordt maximaal elke 60 seconden bijgewerkt (`RATE_UPDATE_MIN_INTERVAL`), niet bij elke state change.
+3. **Minimum change threshold**: de rate wordt alleen aangepast als het verschil > 200W is (`RATE_CHANGE_THRESHOLD_W`), om micro-aanpassingen te voorkomen.
+
+#### Nieuwe constanten
+- `RATE_UPDATE_MIN_INTERVAL = 60` — minimaal 60s tussen rate updates
+- `RATE_CHANGE_THRESHOLD_W = 200` — minimaal 200W verschil om rate te wijzigen
+- `SMOOTHING_WINDOW_SECONDS = 30` — 30s moving average window
+
+#### Nieuwe helper functies
+- `_smooth_value(store, key, value, now)` — moving average over SMOOTHING_WINDOW_SECONDS
+- `_should_update_rate(store, rate_key, new_rate, now)` — throttle + minimum change check
+
+#### Toegepast op
+- Zelfconsumptie charge (surplus-based)
+- Zelfconsumptie discharge (deficit-based)
+- Peak-shaving discharge (import-based)
+
 ## v2.0.1 — 2026-07-01
 
 ### Bugfixes

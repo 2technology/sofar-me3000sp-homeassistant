@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfPower
+from homeassistant.const import UnitOfPower, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 
 from .const import (
     CONF_EXPORT_ENTITY,
@@ -53,8 +57,14 @@ from .const import (
     SENSOR_GRID_IMPORT_POWER,
     SENSOR_GRID_SURPLUS_POWER,
     SENSOR_HOUSE_LOAD_POWER,
+    QUARTER_SECONDS,
     SENSOR_MONTHLY_PEAK_W,
     SENSOR_NET_GRID_POWER,
+    SENSOR_QUARTER_AVG_W,
+    SENSOR_QUARTER_BUDGET_W,
+    SENSOR_QUARTER_PROJECTED_W,
+    SENSOR_QUARTER_TIME_REMAINING,
+    SIGNAL_UPDATE,
     SENSOR_SMA_PV_POWER,
     SENSOR_STRATEGY_STATUS,
     SENSOR_VISUAL_SUMMARY,
@@ -113,6 +123,10 @@ async def async_setup_entry(
         SofarDecisionReasonSensor(hass, entry),
         SofarMonthlyPeakSensor(hass, entry),
         SofarStrategyStatusSensor(hass, entry),
+        SofarQuarterStoreSensor(hass, entry, SENSOR_QUARTER_AVG_W, "SOFAR Quarter Avg W", "mdi:chart-timeline-variant", "q_avg_w"),
+        SofarQuarterStoreSensor(hass, entry, SENSOR_QUARTER_PROJECTED_W, "SOFAR Quarter Projected W", "mdi:chart-line", "q_projected_w"),
+        SofarQuarterStoreSensor(hass, entry, SENSOR_QUARTER_BUDGET_W, "SOFAR Quarter Budget W", "mdi:speedometer", "q_budget_w"),
+        SofarQuarterTimeRemainingSensor(hass, entry),
     ]
     async_add_entities(entities)
 
@@ -305,7 +319,13 @@ class SofarVisualSummarySensor(SensorEntity):
         )
 
 class SofarDecisionReasonSensor(SensorEntity):
-    """Sensor that explains WHY the current mode was chosen."""
+    """Reports WHY the automation chose the current mode.
+
+    Single source of truth: this sensor only reads store["decision_reason"]
+    as written by the automation loop. It never re-derives the logic, so
+    what you see is exactly what the automation decided — for every
+    strategy, including holds and honest edge cases.
+    """
 
     _attr_should_poll = False
     _attr_icon = "mdi:clipboard-text-clock"
@@ -316,96 +336,55 @@ class SofarDecisionReasonSensor(SensorEntity):
         self._entry = entry
         self._hass = hass
         self._attr_native_value = "Initializing..."
-        self._attr_available = False
+        self._attr_available = True
         self._attr_device_info = _get_device_info(entry)
 
     async def async_added_to_hass(self) -> None:
-        data = self._entry.data
-        tracked = [
-            data[CONF_EXPORT_ENTITY],
-            data[CONF_IMPORT_ENTITY],
-            data[CONF_PV_ENTITY],
-            data[CONF_SOFAR_MODE_ENTITY],
-            data[CONF_SOFAR_FAULT_ENTITY],
-            data[CONF_SOFAR_SOC_ENTITY],
-        ]
-        self.async_on_remove(async_track_state_change_event(self._hass, tracked, self._on_state_change))
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self._hass, f"{SIGNAL_UPDATE}_{self._entry.entry_id}", self._on_update
+            )
+        )
         self._update_state()
 
     @callback
-    def _on_state_change(self, event) -> None:
+    def _on_update(self) -> None:
         self._update_state()
         self.async_write_ha_state()
 
     def _update_state(self) -> None:
-        data = self._entry.data
-        export_state = self._hass.states.get(data[CONF_EXPORT_ENTITY])
-        import_state = self._hass.states.get(data[CONF_IMPORT_ENTITY])
-        pv_state = self._hass.states.get(data[CONF_PV_ENTITY])
-        mode_state = self._hass.states.get(data[CONF_SOFAR_MODE_ENTITY])
-        fault_state = self._hass.states.get(data[CONF_SOFAR_FAULT_ENTITY])
-        soc_state = self._hass.states.get(data[CONF_SOFAR_SOC_ENTITY])
+        import time as _time
+        store = self._hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {})
+        self._attr_native_value = store.get("decision_reason", "Wachten op eerste automation-run...")
 
-        self._attr_available = (
-            export_state is not None and export_state.state not in _INVALID_STATES
-            and import_state is not None and import_state.state not in _INVALID_STATES
-            and pv_state is not None and pv_state.state not in _INVALID_STATES
-            and mode_state is not None and mode_state.state not in _INVALID_STATES
-            and fault_state is not None and fault_state.state not in _INVALID_STATES
-            and soc_state is not None and soc_state.state not in _INVALID_STATES
-        )
-
-        if not self._attr_available:
-            return
-
-        fault = _get_str(self._hass, data[CONF_SOFAR_FAULT_ENTITY])
-        mode = _get_str(self._hass, data[CONF_SOFAR_MODE_ENTITY])
-        export_w = _get_float(self._hass, data[CONF_EXPORT_ENTITY]) * 1000
-        import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
-        pv_w = _get_float(self._hass, data[CONF_PV_ENTITY])
-        soc = _get_float(self._hass, data[CONF_SOFAR_SOC_ENTITY])
-        net_w = export_w - import_w
-        surplus_w = max(0, net_w)
-        deficit_w = max(0, -net_w)
-
-        balance_w = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_BALANCE_W, DEFAULT_BALANCE_W)
-        export_start = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_EXPORT_START_W, DEFAULT_EXPORT_START_W)
-        import_start = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_IMPORT_START_W, DEFAULT_IMPORT_START_W)
-        pv_min = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_PV_MIN_W, DEFAULT_PV_MIN_W)
-        soc_max = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_SOC_MAX_CHARGE, DEFAULT_SOC_MAX_CHARGE)
-        soc_min = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_SOC_MIN_DISCHARGE, DEFAULT_SOC_MIN_DISCHARGE)
-        soc_force = _get_number_helper(self._hass, self._entry.entry_id, NUMBER_SOC_FORCE_CHARGE, DEFAULT_SOC_FORCE_CHARGE)
-
-        # Build the reason string based on the same logic as _run_automation
-        if fault.lower() not in ("ok", "unavailable", "unknown", ""):
-            self._attr_native_value = f"Alarm: {fault} → standby"
-        elif soc < soc_force:
-            self._attr_native_value = f"Force charge: SOC {soc:.0f}% < {soc_force:.0f}% → charge"
-        elif surplus_w > export_start and pv_w > pv_min and soc < soc_max:
-            charge_w = max(0, int(surplus_w - _get_number_helper(self._hass, self._entry.entry_id, NUMBER_CHARGE_MARGIN_W, DEFAULT_CHARGE_MARGIN_W)))
-            if mode == "charge":
-                self._attr_native_value = f"Charging: surplus {surplus_w:.0f}W > {export_start:.0f}W, PV {pv_w:.0f}W > {pv_min:.0f}W, SOC {soc:.0f}% < {soc_max:.0f}% → charge @ {charge_w}W"
-            else:
-                self._attr_native_value = f"Charge pending: surplus {surplus_w:.0f}W > {export_start:.0f}W (waiting for hold time)"
-        elif import_w > import_start and deficit_w > 0 and soc > soc_min:
-            discharge_w = max(0, int(deficit_w + _get_number_helper(self._hass, self._entry.entry_id, NUMBER_DISCHARGE_MARGIN_W, DEFAULT_DISCHARGE_MARGIN_W)))
-            if mode == "discharge":
-                self._attr_native_value = f"Discharging: import {import_w:.0f}W > {import_start:.0f}W, deficit {deficit_w:.0f}W, SOC {soc:.0f}% > {soc_min:.0f}% → discharge @ {discharge_w}W"
-            else:
-                self._attr_native_value = f"Discharge pending: import {import_w:.0f}W > {import_start:.0f}W (waiting for hold time)"
-        elif abs(net_w) < balance_w:
-            if mode in ("auto", "standby"):
-                self._attr_native_value = f"Balanced: |net| {abs(net_w):.0f}W < {balance_w:.0f}W → auto"
-            else:
-                self._attr_native_value = f"Balance pending: |net| {abs(net_w):.0f}W < {balance_w:.0f}W (waiting for hold time)"
-        elif mode == "standby":
-            self._attr_native_value = f"Standby (no active rule) → auto"
-        else:
-            self._attr_native_value = f"Auto: net {net_w:.0f}W, surplus {surplus_w:.0f}W, deficit {deficit_w:.0f}W, SOC {soc:.0f}%"
+        # Machine-readable context for dashboards and automations.
+        hold = store.get("active_hold")
+        hold_remaining = None
+        if hold and store.get("active_hold_start") is not None:
+            elapsed = _time.monotonic() - store["active_hold_start"]
+            hold_remaining = max(0, round(store.get("active_hold_duration", 0) - elapsed))
+        self._attr_extra_state_attributes = {
+            "strategy": STRATEGY_LABELS.get(store.get("strategy", STRATEGY_SELF_CONSUMPTION)),
+            "active_hold": hold,
+            "hold_remaining_s": hold_remaining,
+            "last_charge_rate_w": store.get("last_charge_rate"),
+            "last_discharge_rate_w": store.get("last_discharge_rate"),
+            "quarter_avg_w": store.get("q_avg_w"),
+            "quarter_projected_w": store.get("q_projected_w"),
+            "quarter_budget_w": store.get("q_budget_w"),
+            "quarter_remaining_s": store.get("q_remaining_s"),
+            "last_quarter_avg_w": store.get("last_quarter_avg_w"),
+        }
 
 
-class SofarMonthlyPeakSensor(SensorEntity):
-    """Sensor that tracks the highest 15-min average import peak this month."""
+class SofarMonthlyPeakSensor(RestoreSensor):
+    """Highest closed clock-quarter import average this month.
+
+    The quarter tracker in the automation loop (single source of truth)
+    computes this per Fluvius rules: clock-aligned quarters, time-weighted
+    average, monthly rollover. This sensor reports it and restores it
+    across restarts.
+    """
 
     _attr_should_poll = False
     _attr_icon = "mdi:chart-line-variant"
@@ -421,45 +400,48 @@ class SofarMonthlyPeakSensor(SensorEntity):
         self._attr_native_value = 0
         self._attr_available = True
         self._attr_device_info = _get_device_info(entry)
-        self._peak_history = []  # (timestamp, import_w) pairs
 
     async def async_added_to_hass(self) -> None:
-        data = self._entry.data
-        self.async_on_remove(async_track_state_change_event(self._hass, [data[CONF_IMPORT_ENTITY]], self._on_state_change))
+        await super().async_added_to_hass()
+        store = self._hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
+
+        # Restore the peak across restarts — but only into the store if the
+        # tracker hasn't produced anything yet, and only if the restored
+        # value belongs to the current month.
+        last = await self.async_get_last_state()
+        last_data = await self.async_get_last_sensor_data()
+        if last_data is not None and last_data.native_value is not None and not store.get("monthly_peak_w"):
+            import datetime as _dt
+            restored_month = (last.attributes.get("peak_month") if last else None)
+            current_month = _dt.datetime.now().strftime("%Y-%m")
+            if restored_month == current_month:
+                try:
+                    store["monthly_peak_w"] = round(float(last_data.native_value))
+                    store["peak_month"] = restored_month
+                    store["monthly_peak_ts"] = last.attributes.get("peaked_at") if last else None
+                except (ValueError, TypeError):
+                    pass
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self._hass, f"{SIGNAL_UPDATE}_{self._entry.entry_id}", self._on_update
+            )
+        )
         self._update_state()
 
     @callback
-    def _on_state_change(self, event) -> None:
+    def _on_update(self) -> None:
         self._update_state()
         self.async_write_ha_state()
 
     def _update_state(self) -> None:
-        import time as _time
-        data = self._entry.data
-        import_w = _get_float(self._hass, data[CONF_IMPORT_ENTITY]) * 1000
-        now = _time.time()
-
-        # Add to history
-        self._peak_history.append((now, import_w))
-
-        # Keep only last 15 minutes of data
-        cutoff = now - 900  # 15 min
-        self._peak_history = [(t, w) for t, w in self._peak_history if t >= cutoff]
-
-        # Calculate current 15-min average
-        if len(self._peak_history) >= 3:
-            avg = sum(w for _, w in self._peak_history) / len(self._peak_history)
-        else:
-            avg = import_w
-
-        # Track the monthly peak (stored in hass.data)
-        store = self._hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
-        monthly_peak = store.get("monthly_peak_w", 0)
-        if avg > monthly_peak:
-            monthly_peak = avg
-            store["monthly_peak_w"] = monthly_peak
-
-        self._attr_native_value = round(monthly_peak)
+        store = self._hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {})
+        self._attr_native_value = store.get("monthly_peak_w", 0)
+        self._attr_extra_state_attributes = {
+            "peak_month": store.get("peak_month"),
+            "peaked_at": store.get("monthly_peak_ts"),
+            "last_quarter_avg_w": store.get("last_quarter_avg_w"),
+        }
 
 
 class SofarStrategyStatusSensor(SensorEntity):
@@ -478,18 +460,15 @@ class SofarStrategyStatusSensor(SensorEntity):
         self._attr_device_info = _get_device_info(entry)
 
     async def async_added_to_hass(self) -> None:
-        data = self._entry.data
-        tracked = [
-            data[CONF_EXPORT_ENTITY],
-            data[CONF_IMPORT_ENTITY],
-            data[CONF_SOFAR_MODE_ENTITY],
-            data[CONF_SOFAR_SOC_ENTITY],
-        ]
-        self.async_on_remove(async_track_state_change_event(self._hass, tracked, self._on_state_change))
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self._hass, f"{SIGNAL_UPDATE}_{self._entry.entry_id}", self._on_update
+            )
+        )
         self._update_state()
 
     @callback
-    def _on_state_change(self, event) -> None:
+    def _on_update(self) -> None:
         self._update_state()
         self.async_write_ha_state()
 
@@ -512,3 +491,86 @@ class SofarStrategyStatusSensor(SensorEntity):
             f"Piek: {monthly_peak:.0f}W / {peak_threshold:.0f}W | "
             f"{decision_reason}"
         )
+
+
+class SofarQuarterStoreSensor(SensorEntity):
+    """Power sensor that reports a value from the quarter tracker store."""
+
+    _attr_should_poll = False
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, unique_id: str, name: str, icon: str, store_key: str) -> None:
+        self._attr_unique_id = f"{DOMAIN}_{unique_id}"
+        self._attr_name = name
+        self._attr_icon = icon
+        self._store_key = store_key
+        self._entry = entry
+        self._hass = hass
+        self._attr_native_value = None
+        self._attr_available = True
+        self._attr_device_info = _get_device_info(entry)
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self._hass, f"{SIGNAL_UPDATE}_{self._entry.entry_id}", self._on_update
+            )
+        )
+        self._update_state()
+
+    @callback
+    def _on_update(self) -> None:
+        self._update_state()
+        self.async_write_ha_state()
+
+    def _update_state(self) -> None:
+        store = self._hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {})
+        self._attr_native_value = store.get(self._store_key)
+
+
+class SofarQuarterTimeRemainingSensor(SensorEntity):
+    """Seconds until the current clock quarter (:00/:15/:30/:45) closes.
+
+    Answers "hoelang geldt de lopende meting nog": when this hits zero the
+    running quarter is settled and a fresh measurement window starts.
+    Ticks every 10 s independent of the automation loop.
+    """
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:timer-sand"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self._attr_unique_id = f"{DOMAIN}_{SENSOR_QUARTER_TIME_REMAINING}"
+        self._attr_name = "SOFAR Quarter Time Remaining"
+        self._entry = entry
+        self._hass = hass
+        self._attr_native_value = None
+        self._attr_available = True
+        self._attr_device_info = _get_device_info(entry)
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            async_track_time_interval(self._hass, self._on_tick, timedelta(seconds=10))
+        )
+        self._update_state()
+
+    @callback
+    def _on_tick(self, _now) -> None:
+        self._update_state()
+        self.async_write_ha_state()
+
+    def _update_state(self) -> None:
+        import datetime as _dt
+        import time as _time
+        now = _time.time()
+        remaining = QUARTER_SECONDS - (now % QUARTER_SECONDS)
+        self._attr_native_value = round(remaining)
+        quarter_end = _dt.datetime.fromtimestamp(now + remaining)
+        self._attr_extra_state_attributes = {
+            "quarter_ends_at": quarter_end.strftime("%H:%M"),
+            "remaining_mmss": f"{int(remaining) // 60}:{int(remaining) % 60:02d}",
+        }

@@ -2,7 +2,7 @@
 
 DOMAIN = "sofar_me3000sp"
 
-VERSION = "2.0.1"
+VERSION = "2.2.0"
 
 # Config entry keys
 CONF_EXPORT_ENTITY = "export_entity"
@@ -125,3 +125,23 @@ SENSOR_CYCLE_COUNT = "sofar_cycle_count"
 NUMBER_PEAK_THRESHOLD_W = "sofar_peak_threshold_w"
 NUMBER_NIGHT_START_HOUR = "sofar_night_start_hour"
 NUMBER_NIGHT_END_HOUR = "sofar_night_end_hour"
+
+# Rate limiting / smoothing
+RATE_UPDATE_MIN_INTERVAL = 60  # seconds between rate updates
+RATE_CHANGE_THRESHOLD_W = 200  # minimum change to trigger rate update
+SMOOTHING_WINDOW_SECONDS = 120  # moving average window
+
+# === KWARTIERPIEK (capaciteitstarief) ===
+QUARTER_SECONDS = 900  # klok-kwartier zoals Fluvius meet (:00/:15/:30/:45)
+
+# Kwartier-inzicht sensor names
+SENSOR_QUARTER_AVG_W = "sofar_quarter_avg_w"
+SENSOR_QUARTER_PROJECTED_W = "sofar_quarter_projected_w"
+SENSOR_QUARTER_BUDGET_W = "sofar_quarter_budget_w"
+SENSOR_QUARTER_TIME_REMAINING = "sofar_quarter_time_remaining"
+
+# Binary sensor: geprojecteerd kwartiergemiddelde boven drempel
+BINARY_PEAK_RISK = "sofar_peak_risk"
+
+# Dispatcher signal (per entry: f"{SIGNAL_UPDATE}_{entry_id}")
+SIGNAL_UPDATE = f"{DOMAIN}_update"
