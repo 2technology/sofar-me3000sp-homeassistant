@@ -84,7 +84,7 @@ GND          ----> GND
 2. **⋮ → Custom repositories**
 3. Voeg toe:
    ```
-   http://192.168.1.80:3000/Mad_Science_Lab/sofar-me3000sp-homeassistant
+   https://github.com/2technology/sofar-me3000sp-homeassistant
    ```
 4. Type: **Integration**
 5. Klik op **SOFAR ME3000SP Controller → Download**
@@ -132,7 +132,7 @@ Naast de ingebouwde automatie zijn er 6 Blueprint automations beschikbaar die je
 2. **⋮ → Custom repositories**
 3. Voeg toe:
    ```
-   http://192.168.1.80:3000/Mad_Science_Lab/sofar-me3000sp-homeassistant
+   https://github.com/2technology/sofar-me3000sp-homeassistant
    ```
 4. Type: **Integration**
 5. Klik op **SOFAR ME3000SP Controller → Download**

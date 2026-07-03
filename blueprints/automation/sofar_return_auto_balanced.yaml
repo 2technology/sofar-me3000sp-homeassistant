@@ -5,7 +5,7 @@ blueprint:
 
     Part of the SOFAR ME3000SP Controller blueprints.
   domain: automation
-  source_url: http://192.168.1.80:3000/Mad_Science_Lab/sofar-me3000sp-homeassistant/src/branch/master/blueprints/automation/sofar_return_auto_balanced.yaml
+  source_url: https://github.com/2technology/sofar-me3000sp-homeassistant/blob/main/blueprints/automation/sofar_return_auto_balanced.yaml
   input:
     export_entity:
       name: "Smart Meter Export (kW)"

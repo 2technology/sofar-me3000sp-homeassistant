@@ -3,7 +3,7 @@
 > **HACS-compatible Home Assistant integratie voor slimme batterij-aansturing**
 > Gebaseerd op externe meetbronnen (slimme meter + PV), niet op interne Sofar CT-klemmen.
 
-[![Version](https://img.shields.io/badge/version-2.1.0-green)](#)
+[![Version](https://img.shields.io/badge/version-2.1.1-green)](#)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange)](#)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
 
@@ -109,7 +109,7 @@ Zorg dat [HACS](https://hacs.xyz/) geïnstalleerd is in Home Assistant.
 2. Klik rechtsboven op **⋮ → Custom repositories**
 3. Voeg deze URL toe:
    ```
-   http://192.168.1.80:3000/Mad_Science_Lab/sofar-me3000sp-homeassistant
+   https://github.com/2technology/sofar-me3000sp-homeassistant
    ```
 4. Kies type: **Integration**
 5. Klik **Add**

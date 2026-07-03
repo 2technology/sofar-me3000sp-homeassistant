@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1.1 — 2026-07-03
+
+### Gewijzigd
+- **Migratie van Forgejo naar GitHub**: alle URLs bijgewerkt naar `https://github.com/2technology/sofar-me3000sp-homeassistant`
+- `manifest.json`: codeowners → `@2technology`, documentation + issue_tracker → GitHub
+- `LICENSE`: volledige MIT tekst met copyright "Mad Science Lab (2technology)"
+- Blueprints `source_url` → GitHub URLs
+- `INSTALLATIE.md` → GitHub URLs
+
 ## v2.1.0 — 2026-07-03
 
 ### 🎯 Rate limiting + smoothing — oplaad/ontlaad stabiliteit
