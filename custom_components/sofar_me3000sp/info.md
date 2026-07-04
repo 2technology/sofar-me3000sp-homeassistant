@@ -1,49 +1,30 @@
 # SOFAR ME3000SP Controller
 
-**Slimme batterij-aansturing voor Home Assistant, gebaseerd op externe meetbronnen.**
+**Smart battery inverter control for Home Assistant, driven by external truth
+sources — not the SOFAR's internal CT clamps.**
 
-Deze integratie stuurt een SOFAR ME3000SP inverter via ESPHome (ESP32 + MAX3485 RS485), maar gebruikt **niet** de interne Sofar CT/powerflow-metingen voor beslissingen. In plaats daarvan vertrouwt het op:
-
-- je slimme meter (export/import in kW)
-- je PV-omvormer (live opbrengst in W)
-
-De SOFAR wordt behandeld als pure **actuator** — de beslissingen worden in Home Assistant genomen op basis van betrouwbare, externe data.
+Decisions are made in Home Assistant from your **smart meter** (import/export)
+and **PV inverter** (live production). The SOFAR ME3000SP is treated as a pure
+actuator over ESPHome (ESP32 + MAX3485, Modbus FC 0x42 in Passive Mode).
 
 ## Features
 
-- **UI-wizard**: selecteer je entities via een formulier — geen YAML
-- **9 template sensors**: export, import, netto, surplus, deficit, huislast, PV, flow direction, visual summary
-- **6 binary sensors**: charging, discharging, exporting, importing, balanced, alarm
-- **11 tunable drempels**: pas aan via de UI zonder code te wijzigen, inclusief force-charge
-- **Interne automation logica**: charge/discharge/auto/standby met hysterese
-- **Force charge**: batterij beschermen bij kritisch lage SOC
-- **Alarm handling**: automatisch standby bij fault
-- **3 services**: handmatige mode/rate controle via Developer Tools
-- **NL + EN translations**
-- **Mermaid architectuurdiagram** in README en docs
+- **UI wizard** — pick your entities in a form, reconfigure anytime, no YAML
+- **6 strategies** — self-consumption, peak shaving, night save, force charge, force discharge, auto
+- **Quarter-peak tracking** for capacity tariffs (e.g. Fluvius): clock-aligned,
+  time-weighted quarters; peak shaving controls the *projected* quarter average
+- **Honest decision reason** — one sensor explains every decision, with
+  machine-readable attributes for dashboards and automations
+- **16 sensors · 7 binary sensors · 14 tunable thresholds · 1 strategy selector**
+- Settings and strategy **persist across restarts**
+- Safety first: alarm → standby, critical SOC → force charge — always
+- **3 services** for manual mode/rate control
 
-## Vereisten
+## Requirements
 
-1. Een SOFAR ME3000SP in **Passive Mode**
-2. Een ESP32 met ESPHome firmware (zie `esphome/` map)
-3. Home Assistant entities voor:
-   - slimme meter export (kW)
-   - slimme meter import (kW)
-   - PV-opbrengst (W)
-4. ESPHome entities voor:
-   - mode select
-   - charge rate number
-   - discharge rate number
-   - battery SOC sensor
-   - fault messages sensor
+1. SOFAR ME3000SP in **Passive Mode**
+2. ESP32 + MAX3485 flashed with the ESPHome config from the `esphome/` folder
+3. Smart meter and PV inverter entities in Home Assistant
 
-## Installatie
-
-### Via HACS
-1. HACS → Integrations → Custom repositories → voeg deze repo toe (type: Integration)
-2. Download "SOFAR ME3000SP Controller"
-3. Herstart Home Assistant
-4. Settings → Devices & Services → Add Integration → "SOFAR ME3000SP"
-
-### Handmatig
-Kopieer `custom_components/sofar_me3000sp/` naar `/config/custom_components/sofar_me3000sp/`
+Full documentation, wiring diagram, dashboards and blueprints:
+[github.com/2technology/sofar-me3000sp-homeassistant](https://github.com/2technology/sofar-me3000sp-homeassistant)

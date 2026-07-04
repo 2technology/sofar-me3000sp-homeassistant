@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from homeassistant.components.number import NumberMode, RestoreNumber
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -14,6 +14,9 @@ from .const import (
     DEFAULT_EXPORT_START_W,
     DEFAULT_FORCE_CHARGE_RATE,
     DEFAULT_IMPORT_START_W,
+    DEFAULT_NIGHT_END_HOUR,
+    DEFAULT_NIGHT_START_HOUR,
+    DEFAULT_PEAK_THRESHOLD_W,
     DEFAULT_PV_MIN_W,
     DEFAULT_SOC_FORCE_CHARGE,
     DEFAULT_SOC_FORCE_CHARGE_TARGET,
@@ -26,17 +29,14 @@ from .const import (
     NUMBER_EXPORT_START_W,
     NUMBER_FORCE_CHARGE_RATE,
     NUMBER_IMPORT_START_W,
+    NUMBER_NIGHT_END_HOUR,
+    NUMBER_NIGHT_START_HOUR,
+    NUMBER_PEAK_THRESHOLD_W,
     NUMBER_PV_MIN_W,
     NUMBER_SOC_FORCE_CHARGE,
     NUMBER_SOC_FORCE_CHARGE_TARGET,
     NUMBER_SOC_MAX_CHARGE,
     NUMBER_SOC_MIN_DISCHARGE,
-    NUMBER_PEAK_THRESHOLD_W,
-    NUMBER_NIGHT_START_HOUR,
-    NUMBER_NIGHT_END_HOUR,
-    DEFAULT_PEAK_THRESHOLD_W,
-    DEFAULT_NIGHT_START_HOUR,
-    DEFAULT_NIGHT_END_HOUR,
 )
 from .entity import _get_device_info
 

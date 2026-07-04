@@ -1,5 +1,35 @@
 # Changelog
 
+## v2.2.1 — 2026-07-04
+
+Maintenance release: repository best practices, no behaviour changes.
+
+### Fixed
+- **Config-flow error texts never resolved in the UI**: translations used a
+  top-level `errors`/`reconfigure` structure instead of `config.error` /
+  `config.step.reconfigure`. Users saw raw keys instead of messages.
+- `translations/en.json` contained Dutch descriptions; now fully English
+  (NL preserved in `nl.json`, `strings.json` added as source of truth).
+- Deprecated `entry_type="service"` string replaced with `DeviceEntryType.SERVICE`.
+- Config flow validation returned untranslatable literal strings; now uses
+  error keys.
+
+### Added
+- **CI**: hassfest + HACS validation, ruff lint, and pytest on every push/PR
+  (`.github/workflows/`).
+- **Unit tests** for the quarter tracker with analytically derived expected
+  values (`tests/test_quarter_tracker.py`, 8 tests).
+- `quarter.py`: tracker extracted into a standalone, HA-free module.
+- `CONTRIBUTING.md`, `pyproject.toml` (ruff config), `strings.json`.
+- `manifest.json`: `integration_type: hub`.
+
+### Changed
+- `services.yaml` and `info.md` (HACS storefront) translated to English and
+  updated to the v2.2 feature set.
+- Ruff cleanup across the component (unused imports, import order).
+- Removed redundant `assets/hardware-wiring-diagram-preview.png` (SVG is the
+  single source).
+
 ## v2.2.0 — 2026-07-03
 
 ### Kritieke fixes

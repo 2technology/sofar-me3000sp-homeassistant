@@ -4,16 +4,14 @@ from __future__ import annotations
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
     DOMAIN,
     SELECT_STRATEGY,
-    STRATEGY_AUTO,
     STRATEGY_LABELS,
-    STRATEGY_OPTIONS,
     STRATEGY_SELF_CONSUMPTION,
 )
 from .entity import _get_device_info

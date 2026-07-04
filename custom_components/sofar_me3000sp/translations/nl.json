@@ -3,7 +3,21 @@
     "step": {
       "user": {
         "title": "SOFAR ME3000SP Controller",
-        "description": "Selecteer de entities voor je SOFAR ME3000SP installatie.\n\n**Slimme meter:**\n- Export entity (kW)\n- Import entity (kW)\n\n**PV omvormer:**\n- PV power entity (W)\n\n**ESPHome SOFAR device:**\n- Mode select entity\n- Charge rate number entity\n- Discharge rate number entity\n- Battery SOC sensor entity\n- Fault messages sensor entity",
+        "description": "Selecteer de entities voor je SOFAR ME3000SP installatie.\n\n**Slimme meter:** export + import (kW)\n**PV-omvormer:** vermogen (W)\n**ESPHome SOFAR device:** mode select, laad-/ontlaadvermogen, batterij-SOC, foutmeldingen",
+        "data": {
+          "export_entity": "Export entity (kW)",
+          "import_entity": "Import entity (kW)",
+          "pv_entity": "PV power entity (W)",
+          "sofar_mode_entity": "SOFAR mode select",
+          "sofar_charge_rate_entity": "SOFAR charge rate",
+          "sofar_discharge_rate_entity": "SOFAR discharge rate",
+          "sofar_soc_entity": "SOFAR battery SOC",
+          "sofar_fault_entity": "SOFAR fault messages"
+        }
+      },
+      "reconfigure": {
+        "title": "SOFAR ME3000SP Controller herconfigureren",
+        "description": "Pas je entity-mapping aan. De integratie herlaadt automatisch.",
         "data": {
           "export_entity": "Export entity (kW)",
           "import_entity": "Import entity (kW)",
@@ -15,27 +29,13 @@
           "sofar_fault_entity": "SOFAR fault messages"
         }
       }
+    },
+    "error": {
+      "must_be_entity_id": "Moet een geldige entity-ID zijn (sensor.xxx, select.xxx of number.xxx)",
+      "already_configured": "Deze SOFAR mode-entity is al geconfigureerd"
+    },
+    "abort": {
+      "reconfigure_successful": "Herconfiguratie geslaagd"
     }
-  },
-  "entity": {
-    "number": {
-      "sofar_me3000sp_sofar_soc_force_charge": {
-        "name": "SOC Force Charge %"
-      },
-      "sofar_me3000sp_sofar_soc_force_charge_target": {
-        "name": "SOC Force Charge Target %"
-      },
-      "sofar_me3000sp_sofar_force_charge_rate": {
-        "name": "Force Charge Rate W"
-      }
-    }
-  },
-  "errors": {
-    "must_be_entity_id": "Moet een geldige entity ID zijn (sensor.xxx, select.xxx, of number.xxx)",
-    "already_configured": "Deze SOFAR mode entity is al geconfigureerd"
-  },
-  "reconfigure": {
-    "title": "SOFAR ME3000SP Controller herconfigureren",
-    "description": "Pas je entity-mapping aan. De integratie herlaadt automatisch."
   }
 }

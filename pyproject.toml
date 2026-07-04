@@ -1,0 +1,16 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = [
+  "E501",  # line length: handled pragmatically
+]
+
+[tool.ruff.lint.per-file-ignores]
+# HA integration pattern: relative imports within the component
+"custom_components/sofar_me3000sp/*" = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

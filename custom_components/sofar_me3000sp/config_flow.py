@@ -55,21 +55,20 @@ def _build_schema(defaults: dict[str, str] | None = None) -> vol.Schema:
 
 
 def _validate_input(user_input: dict[str, Any]) -> dict[str, str]:
-    """Validate user input and return errors dict."""
+    """Validate user input; values map to keys in translations config.error."""
     errors: dict[str, str] = {}
-    for key, label in [
-        (CONF_EXPORT_ENTITY, "Export entity"),
-        (CONF_IMPORT_ENTITY, "Import entity"),
-        (CONF_PV_ENTITY, "PV power entity"),
-        (CONF_SOFAR_MODE_ENTITY, "SOFAR mode select entity"),
-        (CONF_SOFAR_CHARGE_RATE_ENTITY, "SOFAR charge rate number entity"),
-        (CONF_SOFAR_DISCHARGE_RATE_ENTITY, "SOFAR discharge rate number entity"),
-        (CONF_SOFAR_SOC_ENTITY, "SOFAR battery SOC sensor entity"),
-        (CONF_SOFAR_FAULT_ENTITY, "SOFAR fault messages sensor entity"),
-    ]:
-        if not user_input.get(key):
-            errors[key] = f"{label} is required"
-        elif not user_input[key].startswith(("sensor.", "select.", "number.")):
+    for key in (
+        CONF_EXPORT_ENTITY,
+        CONF_IMPORT_ENTITY,
+        CONF_PV_ENTITY,
+        CONF_SOFAR_MODE_ENTITY,
+        CONF_SOFAR_CHARGE_RATE_ENTITY,
+        CONF_SOFAR_DISCHARGE_RATE_ENTITY,
+        CONF_SOFAR_SOC_ENTITY,
+        CONF_SOFAR_FAULT_ENTITY,
+    ):
+        value = user_input.get(key, "")
+        if not value.startswith(("sensor.", "select.", "number.")):
             errors[key] = "must_be_entity_id"
     return errors
 
