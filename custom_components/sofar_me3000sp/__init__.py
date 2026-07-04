@@ -26,6 +26,7 @@ from homeassistant.const import (
     Platform,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 
@@ -120,8 +121,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Register services
-    await _async_register_services(hass, entry)
+    # Register services once, at domain level (multi-entry safe)
+    await _async_register_services(hass)
 
     # Start automation logic after HA is fully started
     async def _start_automation(_event=None):
@@ -343,8 +344,8 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                 store["decision_reason"] = "Force charge timeout → auto"
             else:
                 store["decision_reason"] = (
-                    f"Force charge bezig: SOC {soc:.0f}% → doel {soc_force_charge_target:.0f}% "
-                    f"({_fmt_mmss(FORCE_CHARGE_TIMEOUT - elapsed)} tot timeout)"
+                    f"Force charge in progress: SOC {soc:.0f}% → target {soc_force_charge_target:.0f}% "
+                    f"({_fmt_mmss(FORCE_CHARGE_TIMEOUT - elapsed)} until timeout)"
                 )
         return
     if store.get("force_charge_active"):
@@ -356,7 +357,7 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
         if current_mode != MODE_AUTO:
             await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
         _set_hold(store, None, None, 0)
-        store["decision_reason"] = "Auto: SOFAR bepaalt zelf"
+        store["decision_reason"] = "Auto: SOFAR decides on its own"
         return
 
     if strategy == STRATEGY_FORCE_CHARGE:
@@ -368,7 +369,7 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
             store["last_charge_rate_update"] = now
             store["last_charge_rate"] = rate
         _set_hold(store, None, None, 0)
-        store["decision_reason"] = f"Forceer laden: charge @ {rate}W (handmatige override)"
+        store["decision_reason"] = f"Force charge: charge @ {rate}W (manual override)"
         return
 
     if strategy == STRATEGY_FORCE_DISCHARGE:
@@ -380,9 +381,9 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                 await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
                 store["last_discharge_rate_update"] = now
                 store["last_discharge_rate"] = discharge_w
-            store["decision_reason"] = f"Forceer ontladen: discharge @ {store['last_discharge_rate']}W (handmatige override)"
+            store["decision_reason"] = f"Force discharge: discharge @ {store['last_discharge_rate']}W (manual override)"
         else:
-            store["decision_reason"] = f"Forceer ontladen: SOC {soc:.0f}% <= min {soc_min_discharge:.0f}% → niet ontladen"
+            store["decision_reason"] = f"Force discharge: SOC {soc:.0f}% <= min {soc_min_discharge:.0f}% → not discharging"
         _set_hold(store, None, None, 0)
         return
 
@@ -409,8 +410,8 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                         store["last_discharge_rate_update"] = now
                         store["last_discharge_rate"] = discharge_w
                     store["decision_reason"] = (
-                        f"Peak-shaving: projectie {projected}W > {peak_threshold:.0f}W "
-                        f"(kwartier nog {_fmt_mmss(remaining)}) → discharge @ {store['last_discharge_rate']}W"
+                        f"Peak shaving: projection {projected}W > {peak_threshold:.0f}W "
+                        f"(quarter: {_fmt_mmss(remaining)} left) → discharge @ {store['last_discharge_rate']}W"
                     )
                     _set_hold(store, None, None, 0)
                     store["charge_hold_start"] = None
@@ -419,8 +420,8 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
             else:
                 # Honest reason: the threat is real but the battery can't help.
                 store["decision_reason"] = (
-                    f"Peak-shaving: projectie {projected}W > {peak_threshold:.0f}W "
-                    f"maar SOC {soc:.0f}% ≤ min {soc_min_discharge:.0f}% → kan niet ontladen"
+                    f"Peak shaving: projection {projected}W > {peak_threshold:.0f}W "
+                    f"but SOC {soc:.0f}% ≤ min {soc_min_discharge:.0f}% → cannot discharge"
                 )
                 _set_hold(store, None, None, 0)
                 if current_mode not in (MODE_AUTO, MODE_STANDBY):
@@ -432,7 +433,7 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
             if store.get("charge_hold_start") is None:
                 store["charge_hold_start"] = now
                 _set_hold(store, "charge", now, CHARGE_HOLD_SECONDS)
-                store["decision_reason"] = f"Peak-shaving charge pending: surplus {surplus_w:.0f}W > {export_start:.0f}W (hold {_fmt_mmss(CHARGE_HOLD_SECONDS)})"
+                store["decision_reason"] = f"Peak shaving charge pending: surplus {surplus_w:.0f}W > {export_start:.0f}W (hold {_fmt_mmss(CHARGE_HOLD_SECONDS)})"
             elif now - store["charge_hold_start"] >= CHARGE_HOLD_SECONDS:
                 charge_w = min(max(0, int(smooth_surplus - charge_margin)), DEFAULT_MAX_RATE)
                 if charge_w > 0:
@@ -442,13 +443,13 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                         await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], charge_w)
                         store["last_charge_rate_update"] = now
                         store["last_charge_rate"] = charge_w
-                    store["decision_reason"] = f"Peak-shaving charge: surplus {surplus_w:.0f}W (avg {smooth_surplus:.0f}W) → charge @ {store['last_charge_rate']}W"
+                    store["decision_reason"] = f"Peak shaving charge: surplus {surplus_w:.0f}W (avg {smooth_surplus:.0f}W) → charge @ {store['last_charge_rate']}W"
                     _set_hold(store, None, None, 0)
                     store["discharge_hold_start"] = None
                     store["balance_hold_start"] = None
             else:
                 store["decision_reason"] = (
-                    f"Peak-shaving charge pending: nog {_fmt_mmss(CHARGE_HOLD_SECONDS - (now - store['charge_hold_start']))}"
+                    f"Peak shaving charge pending: {_fmt_mmss(CHARGE_HOLD_SECONDS - (now - store['charge_hold_start']))} left"
                 )
             return
 
@@ -457,8 +458,8 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
         if current_mode not in (MODE_AUTO, MODE_STANDBY):
             await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
         store["decision_reason"] = (
-            f"Peak-shaving standby: projectie {projected}W ≤ {peak_threshold:.0f}W "
-            f"(kwartier nog {_fmt_mmss(remaining)}, budget {budget}W) → auto"
+            f"Peak shaving standby: projection {projected}W ≤ {peak_threshold:.0f}W "
+            f"(quarter: {_fmt_mmss(remaining)} left, budget {budget}W) → auto"
         )
         return
 
@@ -473,7 +474,7 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                 if store.get("charge_hold_start") is None:
                     store["charge_hold_start"] = now
                     _set_hold(store, "charge", now, CHARGE_HOLD_SECONDS)
-                    store["decision_reason"] = f"Nachtbesparing charge pending: surplus {surplus_w:.0f}W (hold {_fmt_mmss(CHARGE_HOLD_SECONDS)})"
+                    store["decision_reason"] = f"Night save charge pending: surplus {surplus_w:.0f}W (hold {_fmt_mmss(CHARGE_HOLD_SECONDS)})"
                 elif now - store["charge_hold_start"] >= CHARGE_HOLD_SECONDS:
                     charge_w = min(max(0, int(smooth_surplus - charge_margin)), DEFAULT_MAX_RATE)
                     if charge_w > 0:
@@ -483,7 +484,7 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                             await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], charge_w)
                             store["last_charge_rate_update"] = now
                             store["last_charge_rate"] = charge_w
-                        store["decision_reason"] = f"Nachtbesparing charge: surplus {surplus_w:.0f}W → charge @ {store['last_charge_rate']}W"
+                        store["decision_reason"] = f"Night save charge: surplus {surplus_w:.0f}W → charge @ {store['last_charge_rate']}W"
                         _set_hold(store, None, None, 0)
                 return
             store["charge_hold_start"] = None
@@ -492,7 +493,7 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
             # night, which is exactly what this strategy must prevent.
             if current_mode != MODE_STANDBY:
                 await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_STANDBY)
-            store["decision_reason"] = f"Nachtbesparing: batterij sparen ({night_start:02d}:00–{night_end:02d}:00) → standby"
+            store["decision_reason"] = f"Night save: preserving battery ({night_start:02d}:00–{night_end:02d}:00) → standby"
             return
         # During day: fall through to self-consumption logic.
 
@@ -515,9 +516,9 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                 store["discharge_hold_start"] = None
                 store["balance_hold_start"] = None
                 _set_hold(store, None, None, 0)
-                store["decision_reason"] = f"Zelfconsumptie: surplus {surplus_w:.0f}W (avg {smooth_surplus:.0f}W) → charge @ {store['last_charge_rate']}W"
+                store["decision_reason"] = f"Self-consumption: surplus {surplus_w:.0f}W (avg {smooth_surplus:.0f}W) → charge @ {store['last_charge_rate']}W"
         else:
-            store["decision_reason"] = f"Charge pending: nog {_fmt_mmss(CHARGE_HOLD_SECONDS - (now - store['charge_hold_start']))}"
+            store["decision_reason"] = f"Charge pending: {_fmt_mmss(CHARGE_HOLD_SECONDS - (now - store['charge_hold_start']))} left"
         return
     store["charge_hold_start"] = None
 
@@ -539,9 +540,9 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                 store["charge_hold_start"] = None
                 store["balance_hold_start"] = None
                 _set_hold(store, None, None, 0)
-                store["decision_reason"] = f"Zelfconsumptie: deficit {deficit_w:.0f}W (avg {smooth_deficit:.0f}W) → discharge @ {store['last_discharge_rate']}W"
+                store["decision_reason"] = f"Self-consumption: deficit {deficit_w:.0f}W (avg {smooth_deficit:.0f}W) → discharge @ {store['last_discharge_rate']}W"
         else:
-            store["decision_reason"] = f"Discharge pending: nog {_fmt_mmss(DISCHARGE_HOLD_SECONDS - (now - store['discharge_hold_start']))}"
+            store["decision_reason"] = f"Discharge pending: {_fmt_mmss(DISCHARGE_HOLD_SECONDS - (now - store['discharge_hold_start']))} left"
         return
     store["discharge_hold_start"] = None
 
@@ -550,16 +551,16 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
         if store.get("balance_hold_start") is None:
             store["balance_hold_start"] = now
             _set_hold(store, "balance", now, BALANCE_HOLD_SECONDS)
-            store["decision_reason"] = f"Balans pending: |net| {abs(net_w):.0f}W < {balance_w:.0f}W (hold {_fmt_mmss(BALANCE_HOLD_SECONDS)})"
+            store["decision_reason"] = f"Balance pending: |net| {abs(net_w):.0f}W < {balance_w:.0f}W (hold {_fmt_mmss(BALANCE_HOLD_SECONDS)})"
         elif now - store["balance_hold_start"] >= BALANCE_HOLD_SECONDS:
             if current_mode not in (MODE_AUTO, MODE_STANDBY):
                 await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
             store["charge_hold_start"] = None
             store["discharge_hold_start"] = None
             _set_hold(store, None, None, 0)
-            store["decision_reason"] = f"Balans: |net| {abs(net_w):.0f}W < {balance_w:.0f}W → auto"
+            store["decision_reason"] = f"Balance: |net| {abs(net_w):.0f}W < {balance_w:.0f}W → auto"
         else:
-            store["decision_reason"] = f"Balans pending: nog {_fmt_mmss(BALANCE_HOLD_SECONDS - (now - store['balance_hold_start']))}"
+            store["decision_reason"] = f"Balance pending: {_fmt_mmss(BALANCE_HOLD_SECONDS - (now - store['balance_hold_start']))} left"
         return
     store["balance_hold_start"] = None
     _set_hold(store, None, None, 0)
@@ -569,7 +570,7 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
         await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
         store["decision_reason"] = f"Catch-all: standby → auto (SOC {soc:.0f}%, surplus {surplus_w:.0f}W)"
     else:
-        store["decision_reason"] = f"Geen actieve regel: net {net_w:.0f}W, SOC {soc:.0f}%, mode {current_mode}"
+        store["decision_reason"] = f"No active rule: net {net_w:.0f}W, SOC {soc:.0f}%, mode {current_mode}"
 
 
 async def _set_mode(hass: HomeAssistant, entity_id: str, mode: str):
@@ -592,30 +593,51 @@ async def _set_number(hass: HomeAssistant, entity_id: str, value: int):
     )
 
 
-async def _async_register_services(hass: HomeAssistant, entry: ConfigEntry):
-    """Register custom services for manual mode/rate control."""
+async def _async_register_services(hass: HomeAssistant):
+    """Register manual-control services once, resolving the entry per call.
+
+    With multiple config entries the optional config_entry_id field selects
+    the target; with a single entry it can be omitted. (Pre-2.3.0 the
+    services silently controlled whichever entry registered last.)
+    """
+    if hass.services.has_service(DOMAIN, "set_mode"):
+        return
+
+    def _resolve_entry_data(call) -> dict:
+        entries = [
+            e for e in hass.config_entries.async_entries(DOMAIN)
+            if e.entry_id in hass.data.get(DOMAIN, {})
+        ]
+        entry_id = call.data.get("config_entry_id")
+        if entry_id:
+            for e in entries:
+                if e.entry_id == entry_id:
+                    return e.data
+            raise ServiceValidationError(f"Unknown or unloaded config entry: {entry_id}")
+        if len(entries) == 1:
+            return entries[0].data
+        raise ServiceValidationError(
+            "Multiple SOFAR entries configured; specify config_entry_id"
+        )
 
     async def _handle_set_mode(call):
-        """Handle set_mode service call."""
         mode = call.data.get("mode", MODE_AUTO)
         if mode not in (MODE_AUTO, MODE_CHARGE, MODE_DISCHARGE, MODE_STANDBY):
-            _LOGGER.warning("Invalid mode: %s", mode)
-            return
-        await _set_mode(hass, entry.data[CONF_SOFAR_MODE_ENTITY], mode)
+            raise ServiceValidationError(f"Invalid mode: {mode}")
+        data = _resolve_entry_data(call)
+        await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], mode)
         _LOGGER.info("Service set_mode: %s", mode)
 
     async def _handle_set_charge_rate(call):
-        """Handle set_charge_rate service call."""
-        rate = int(call.data.get("rate", 1500))
-        rate = max(0, min(rate, DEFAULT_MAX_RATE))
-        await _set_number(hass, entry.data[CONF_SOFAR_CHARGE_RATE_ENTITY], rate)
+        rate = max(0, min(int(call.data.get("rate", 1500)), DEFAULT_MAX_RATE))
+        data = _resolve_entry_data(call)
+        await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], rate)
         _LOGGER.info("Service set_charge_rate: %dW", rate)
 
     async def _handle_set_discharge_rate(call):
-        """Handle set_discharge_rate service call."""
-        rate = int(call.data.get("rate", 1500))
-        rate = max(0, min(rate, DEFAULT_MAX_RATE))
-        await _set_number(hass, entry.data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], rate)
+        rate = max(0, min(int(call.data.get("rate", 1500)), DEFAULT_MAX_RATE))
+        data = _resolve_entry_data(call)
+        await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], rate)
         _LOGGER.info("Service set_discharge_rate: %dW", rate)
 
     hass.services.async_register(DOMAIN, "set_mode", _handle_set_mode)

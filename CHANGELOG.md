@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.3.0 — 2026-07-04
+
+### ⚠️ Breaking
+- **Strategy option names are now English** (`Self-consumption`, `Peak shaving`,
+  `Night save`, `Force charge`, `Force discharge`, `Auto (SOFAR decides)`).
+  Your selected strategy migrates automatically on upgrade, but automations or
+  scripts that match the old Dutch option strings must be updated.
+- **Decision reason texts are now English** — dashboards matching Dutch
+  substrings must be updated.
+
+### Fixed
+- **Multi-entry services**: with more than one config entry, the
+  `sofar_me3000sp.*` services silently controlled whichever entry registered
+  last. Services now resolve the target per call; an optional
+  `config_entry_id` field selects the entry when multiple are configured.
+
 ## v2.2.1 — 2026-07-04
 
 Maintenance release: repository best practices, no behaviour changes.

@@ -326,7 +326,7 @@ class SofarDecisionReasonSensor(SensorEntity):
     def _update_state(self) -> None:
         import time as _time
         store = self._hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {})
-        self._attr_native_value = store.get("decision_reason", "Wachten op eerste automation-run...")
+        self._attr_native_value = store.get("decision_reason", "Waiting for first automation run...")
 
         # Machine-readable context for dashboards and automations.
         hold = store.get("active_hold")

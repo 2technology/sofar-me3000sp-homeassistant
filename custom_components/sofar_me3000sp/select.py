@@ -10,6 +10,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
     DOMAIN,
+    LEGACY_STRATEGY_LABELS,
     SELECT_STRATEGY,
     STRATEGY_LABELS,
     STRATEGY_SELF_CONSUMPTION,
@@ -48,12 +49,17 @@ class SofarStrategySelect(SelectEntity, RestoreEntity):
         await super().async_added_to_hass()
 
         last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state in STRATEGY_LABELS.values():
-            self._attr_current_option = last_state.state
-            for key, label in STRATEGY_LABELS.items():
-                if label == last_state.state:
-                    self._strategy_key = key
-                    break
+        if last_state is not None:
+            restored = last_state.state
+            if restored in LEGACY_STRATEGY_LABELS:  # pre-2.3.0 Dutch label
+                self._strategy_key = LEGACY_STRATEGY_LABELS[restored]
+                self._attr_current_option = STRATEGY_LABELS[self._strategy_key]
+            elif restored in STRATEGY_LABELS.values():
+                self._attr_current_option = restored
+                for key, label in STRATEGY_LABELS.items():
+                    if label == restored:
+                        self._strategy_key = key
+                        break
 
         store = self.hass.data.setdefault(DOMAIN, {}).setdefault(self._entry.entry_id, {})
         # Register this entity for strategy lookups

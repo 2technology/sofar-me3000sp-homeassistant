@@ -2,6 +2,13 @@ set_mode:
   name: Set inverter mode
   description: Manually set the SOFAR ME3000SP inverter mode.
   fields:
+    config_entry_id:
+      name: Config entry
+      description: Which SOFAR entry to control. Only needed with multiple entries.
+      required: false
+      selector:
+        config_entry:
+          integration: sofar_me3000sp
     mode:
       name: Mode
       description: "Desired mode: auto, charge, discharge or standby."
@@ -19,6 +26,13 @@ set_charge_rate:
   name: Set charge rate
   description: Set the charge power (0-3000 W).
   fields:
+    config_entry_id:
+      name: Config entry
+      description: Which SOFAR entry to control. Only needed with multiple entries.
+      required: false
+      selector:
+        config_entry:
+          integration: sofar_me3000sp
     rate:
       name: Charge rate
       description: Charge power in watts.
@@ -36,6 +50,13 @@ set_discharge_rate:
   name: Set discharge rate
   description: Set the discharge power (0-3000 W).
   fields:
+    config_entry_id:
+      name: Config entry
+      description: Which SOFAR entry to control. Only needed with multiple entries.
+      required: false
+      selector:
+        config_entry:
+          integration: sofar_me3000sp
     rate:
       name: Discharge rate
       description: Discharge power in watts.

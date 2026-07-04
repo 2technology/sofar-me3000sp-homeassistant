@@ -2,7 +2,7 @@
 
 DOMAIN = "sofar_me3000sp"
 
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 
 # Config entry keys
 CONF_EXPORT_ENTITY = "export_entity"
@@ -96,12 +96,22 @@ STRATEGY_OPTIONS = [
 ]
 
 STRATEGY_LABELS = {
-    STRATEGY_SELF_CONSUMPTION: "Zelfconsumptie",
-    STRATEGY_PEAK_SHAVING: "Peak-shaving",
-    STRATEGY_NIGHT_SAVE: "Nachtbesparing",
-    STRATEGY_FORCE_CHARGE: "Forceer laden",
-    STRATEGY_FORCE_DISCHARGE: "Forceer ontladen",
-    STRATEGY_AUTO: "Auto (SOFAR bepaalt)",
+    STRATEGY_SELF_CONSUMPTION: "Self-consumption",
+    STRATEGY_PEAK_SHAVING: "Peak shaving",
+    STRATEGY_NIGHT_SAVE: "Night save",
+    STRATEGY_FORCE_CHARGE: "Force charge",
+    STRATEGY_FORCE_DISCHARGE: "Force discharge",
+    STRATEGY_AUTO: "Auto (SOFAR decides)",
+}
+
+# v2.2.x labels — accepted on restore so an upgrade keeps the chosen strategy
+LEGACY_STRATEGY_LABELS = {
+    "Zelfconsumptie": STRATEGY_SELF_CONSUMPTION,
+    "Peak-shaving": STRATEGY_PEAK_SHAVING,
+    "Nachtbesparing": STRATEGY_NIGHT_SAVE,
+    "Forceer laden": STRATEGY_FORCE_CHARGE,
+    "Forceer ontladen": STRATEGY_FORCE_DISCHARGE,
+    "Auto (SOFAR bepaalt)": STRATEGY_AUTO,
 }
 
 # Select entity names
