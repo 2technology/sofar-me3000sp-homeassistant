@@ -1,491 +1,419 @@
-# SOFAR ME3000SP Controller
-
-> **HACS-compatible Home Assistant integratie voor slimme batterij-aansturing**
-> Gebaseerd op externe meetbronnen (slimme meter + PV), niet op interne Sofar CT-klemmen.
-
-[![Version](https://img.shields.io/badge/version-2.1.1-green)](#)
-[![HACS](https://img.shields.io/badge/HACS-Custom-orange)](#)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
-
 ```text
-   ____  ___  _________ _______________  ________  __  _______  ____  __________  ___ 
-  / __ \/ _ \/ ___/ __ \/ ___/ ___/ _ \/ __/ __ \/  |/  / __ \/ __ \/_  __/ _ \/ _ |
- / /_/ / , _/ /__/ /_/ / /__/ /__/ , _/ _// /_/ / /|_/ / /_/ / /_/ / / / / , _/ __ |
- \____/ /|_|\___/\____/\___/\___/ /|_|/___/\____/_/  /_/\____/\____/ /_/  /|_|/_/|_|
-                                                                                       
+░█▀▀░█▀█░█▀▀░█▀█░█▀▄░░░█▄█░█▀▀░▀▀█░█▀█░█▀█░█▀█░█▀▀░█▀█
+░▀▀█░█░█░█▀▀░█▀█░█▀▄░░░█░█░█▀▀░░▀▄░█░█░█░█░█░█░▀▀█░█▀▀
+░▀▀▀░▀▀▀░▀░░░▀░▀░▀░▀░░░▀░▀░▀▀▀░▀▀░░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░░
 ```
 
-> **Mad Science Lab SOFAR ME3000SP Controller**  
-> Externe-bron-sturing van je batterij-omvormer. Betrouwbaar, tunebaar, visueel.
+# SOFAR ME3000SP Controller
+
+> **HACS custom integration for smart battery inverter control** — driven by
+> external truth sources (smart meter + PV), not the SOFAR's internal CT clamps.
+
+[![Version](https://img.shields.io/badge/version-2.2.0-39FF8A?style=flat-square&labelColor=0E1A2B)](CHANGELOG.md)
+[![HACS](https://img.shields.io/badge/HACS-custom-FF5C8A?style=flat-square&labelColor=0E1A2B)](https://hacs.xyz/)
+[![Home Assistant](https://img.shields.io/badge/Home_Assistant-2024.2%2B-39FF8A?style=flat-square&labelColor=0E1A2B)](https://www.home-assistant.io/)
+[![Protocol](https://img.shields.io/badge/Modbus-FC_0x42_passive-FF5C8A?style=flat-square&labelColor=0E1A2B)](docs/ARCHITECTUUR.md)
+[![License](https://img.shields.io/badge/license-MIT-E0E0E0?style=flat-square&labelColor=0E1A2B)](LICENSE)
+
+**Signal path:** smart meter + PV → Home Assistant decides → ESP32 + MAX3485 →
+Modbus RS485 → SOFAR ME3000SP acts. The inverter is treated as a dumb actuator;
+the intelligence lives in Home Assistant, where you can see it, tune it, and
+trust it.
 
 ---
 
-## 📑 Inhoud
+## Contents
 
-- [Voor wie is dit?](#voor-wie-is-dit)
-- [Hoe werkt het?](#hoe-werkt-het)
-- [Installatie via HACS (aanbevolen)](#installatie-via-hacs-aanbevolen)
-- [Installatie zonder HACS](#installatie-zonder-hacs)
-- [ESPHome firmware flashen](#esphome-firmware-flashen)
-- [Dashboard toevoegen](#dashboard-toevoegen)
-- [Wat doet de automatie?](#wat-doet-de-automatie)
-- [Tuning en aanpassen](#tuning-en-aanpassen)
-- [Services voor handmatige controle](#services-voor-handmatige-controle)
-- [Alle bestanden in deze repo](#alle-bestanden-in-deze-repo)
-- [Vereisten](#vereisten)
-- [Veiligheid](#veiligheid)
-- [Troubleshooting](#troubleshooting)
-- [Architectuur](#architectuur)
-- [Changelog](#changelog)
-- [Licentie](#licentie)
-
----
-
-## Voor wie is dit?
-
-Voor iedereen die een **SOFAR ME3000SP** batterijomvormer heeft en deze via Home Assistant slim wil aansturen — zonder te vertrouwen op de interne CT-klem-metingen van de Sofar.
-
-Deze integratie gebruikt:
-
-- **slimme meter** export/import als waarheid
-- **PV-omvormer** (SMA of andere) als PV-bron
-- **SOFAR** alleen als actuator (laden/ontladen/standby)
-
-> ⚠️ Waarom niet de interne Sofar-metingen? In sommige installaties zijn de CT-klemmen onbetrouwbaar of bewust aangepast door de installateur. Deze integratie omzeilt dat probleem volledig door externe, verifieerbare bronnen te gebruiken.
+- [Who is this for?](#who-is-this-for)
+- [How it works](#how-it-works)
+- [Install via HACS (recommended)](#install-via-hacs-recommended)
+- [Install without HACS](#install-without-hacs)
+- [ESPHome firmware](#esphome-firmware)
+- [Strategies](#strategies)
+- [Quarter-peak tracking (capacity tariff)](#quarter-peak-tracking-capacity-tariff)
+- [What the automation does](#what-the-automation-does)
+- [Tuning](#tuning)
+- [Manual control services](#manual-control-services)
+- [Dashboards](#dashboards)
+- [Blueprint automations](#blueprint-automations)
+- [Repository map](#repository-map)
+- [Requirements](#requirements)
+- [Safety checklist](#safety-checklist)
+- [Troubleshooting · Architecture · Changelog](#troubleshooting--architecture--changelog)
+- [License](#license)
 
 ---
 
-## Hoe werkt het?
+## Who is this for?
 
-Home Assistant beslist op basis van je slimme meter en PV-opbrengst, en stuurt de SOFAR via ESPHome aan als een remote-gecontroleerde actuator.
+Anyone with a **SOFAR ME3000SP** battery inverter who wants Home Assistant in
+charge — without trusting the SOFAR's internal CT clamp measurements.
 
-### Schematische opstelling
+This integration uses:
+
+- your **smart meter** import/export as the single source of truth
+- your **PV inverter** (SMA or any other) as the PV source
+- the **SOFAR** purely as an actuator: charge / discharge / auto / standby
+
+> ⚠️ **Why not the internal SOFAR measurements?** In some installations the CT
+> clamps are unreliable or were deliberately repositioned by the installer.
+> This integration sidesteps that entirely by using external, verifiable sources.
+
+---
+
+## How it works
 
 ```mermaid
 flowchart LR
-    SM[🛠️ Slimme meter] --|export/import kW| --> HA[🏠 Home Assistant]
-    PV[☀️ PV omvormer] --|power W| --> HA
-    HA --|mode/rate| --> ESP[⚡ ESP32 + MAX3485]
-    ESP --|Modbus 0x42| --> SOFAR[🔋 SOFAR ME3000SP]
-    SOFAR <-->|DC| BAT[🔋 Batterij]
-    SOFAR -->|SOC / fault / status| HA
+    SM["🧮 Smart meter"] -->|"import / export kW"| HA["🏠 Home Assistant<br/>decision engine"]
+    PV["☀️ PV inverter"] -->|"power W"| HA
+    HA -->|"mode + rate"| ESP["⚡ ESP32 + MAX3485"]
+    ESP -->|"Modbus FC 0x42"| SOFAR["🔋 SOFAR ME3000SP"]
+    SOFAR <-->|DC| BAT["🪫 Battery"]
+    SOFAR -->|"SOC · fault · status"| HA
 ```
 
-Dit is de fysieke opstelling in mijn woning:
+![SOFAR ME3000SP architecture](/assets/sofar-me3000sp-architecture.png)
 
-![SOFAR ME3000SP architectuur](/assets/sofar-me3000sp-architecture.png)
+**Flow of information:**
 
-**Stroom van informatie:**
+1. The **smart meter** reports real-time import/export in kW
+2. The **PV inverter** reports real-time production in W
+3. **Home Assistant** combines both and decides: charge / discharge / auto / standby
+4. The **ESP32 + MAX3485** translates that into Modbus RTU commands
+5. The **SOFAR ME3000SP** executes and drives the battery
+6. SOC, fault and status flow back into Home Assistant
 
-1. **Slimme meter** meldt realtime export/import in kW
-2. **PV omvormer** meldt realtime PV-productie in W
-3. **Home Assistant** combineret beide en beslist: charge / discharge / auto / standby
-4. **ESP32 + MAX3485** zet dat om naar Modbus RTU commands
-5. **SOFAR ME3000SP** voert het commando uit en stuurt batterij aan
-6. **Batterij** stuurt SOC, fault en status terug naar Home Assistant
-
-### Componenten
-
-| Component | Rol |
-|---|---|
-| **Slimme meter** | De waarheid over import/export |
-| **PV omvormer** | De bron van de actuele PV-opbrengst |
-| **Home Assistant** | Het brein: leest slimme meter + PV, beslist, stuurt de SOFAR |
-| **ESP32 + MAX3485** | De brug tussen HA en de SOFAR via Modbus RS485 |
-| **SOFAR ME3000SP** | De actuator: laadt/ontlaadt de batterij op commando |
-| **Batterij** | Energiebuffer die via de SOFAR wordt aangestuurd |
+The automation engine is the **single source of truth**: every decision, hold
+timer, and quarter-peak calculation is made in one place and *reported* by the
+sensors — the reason you see is always the reason that was used.
 
 ---
 
-## Installatie via HACS (aanbevolen)
+## Install via HACS (recommended)
 
-De makkelijkste manier — geen YAML-kennis nodig.
+No YAML knowledge required.
 
-### Stap 1: HACS installeren
-Zorg dat [HACS](https://hacs.xyz/) geïnstalleerd is in Home Assistant.
-
-### Stap 2: Repository toevoegen
-1. Ga naar **HACS → Integrations**
-2. Klik rechtsboven op **⋮ → Custom repositories**
-3. Voeg deze URL toe:
+1. Make sure [HACS](https://hacs.xyz/) is installed
+2. **HACS → Integrations → ⋮ → Custom repositories**, add:
    ```
    https://github.com/2technology/sofar-me3000sp-homeassistant
    ```
-4. Kies type: **Integration**
-5. Klik **Add**
+   type: **Integration**
+3. Search **SOFAR ME3000SP Controller** → **Download**
+4. Restart Home Assistant
+5. **Settings → Devices & Services → Add Integration** → search "SOFAR ME3000SP"
+6. The wizard asks you to pick your entities:
 
-### Stap 3: Downloaden
-1. Zoek **SOFAR ME3000SP Controller** in HACS
-2. Klik **Download**
-3. Wacht tot de download klaar is
-
-### Stap 4: Herstarten
-Herstart Home Assistant.
-
-### Stap 5: Integratie toevoegen
-1. Ga naar **Settings → Devices & Services**
-2. Klik **Add Integration** (rechtsonder)
-3. Zoek op **"SOFAR ME3000SP"**
-4. Volg de wizard:
-
-De wizard vraagt je om deze entities te selecteren:
-
-| Veld | Wat vul je in? | Voorbeeld |
+| Field | What to select | Example |
 |---|---|---|
-| Export entity | Slimme meter export (kW) | `sensor.electricity_meter_energieproductie` |
-| Import entity | Slimme meter import (kW) | `sensor.electricity_meter_energieverbruik` |
-| PV power entity | PV-omvormer power (W) | `sensor.sunny_pv_power` |
-| SOFAR mode select | ESPHome mode dropdown | `select.sofar_me3000sp_sofar_me3000sp_mode` |
-| SOFAR charge rate | ESPHome charge rate slider | `number.sofar_me3000sp_sofar_me3000sp_charge_rate` |
-| SOFAR discharge rate | ESPHome discharge rate slider | `number.sofar_me3000sp_sofar_me3000sp_discharge_rate` |
-| SOFAR battery SOC | ESPHome SOC sensor | `sensor.sofar_me3000sp_sofar_me3000sp_battery_soc` |
-| SOFAR fault messages | ESPHome fault sensor | `sensor.sofar_me3000sp_sofar_me3000sp_fault_messages` |
+| Export entity | Smart meter export (kW) | `sensor.electricity_meter_energy_production` |
+| Import entity | Smart meter import (kW) | `sensor.electricity_meter_energy_consumption` |
+| PV power entity | PV inverter power (W) | `sensor.sunny_pv_power` |
+| SOFAR mode select | ESPHome mode dropdown | `select.sofar_me3000sp_..._mode` |
+| SOFAR charge rate | ESPHome charge rate number | `number.sofar_me3000sp_..._charge_rate` |
+| SOFAR discharge rate | ESPHome discharge rate number | `number.sofar_me3000sp_..._discharge_rate` |
+| SOFAR battery SOC | ESPHome SOC sensor | `sensor.sofar_me3000sp_..._battery_soc` |
+| SOFAR fault messages | ESPHome fault sensor | `sensor.sofar_me3000sp_..._fault_messages` |
 
-### Stap 6: Klaar!
-De integratie maakt automatisch aan:
+> 💡 Picked the wrong entity? **Settings → Devices & Services → SOFAR ME3000SP
+> → Configure** lets you change entities without reinstalling.
 
-> 💡 **Entity gewijzigd?** Ga naar **Settings → Devices & Services → SOFAR ME3000SP → Configure** om je entities aan te passen zonder de integratie te verwijderen.
-- **9 sensors** (export, import, netto, surplus, deficit, huislast, PV, flow direction, visual summary)
-- **6 binary sensors** (charging, discharging, exporting, importing, balanced, alarm)
-- **11 tunable drempels** (export start, import start, PV min, balance, margins, SOC limits)
-- **Interne automation logica** (charge/discharge/auto/standby/force-charge)
-- **3 services** (set_mode, set_charge_rate, set_discharge_rate)
+**The integration creates:**
+
+- **16 sensors** — derived energy flows, decision reason, strategy status, monthly peak, and 4 live quarter-peak sensors
+- **7 binary sensors** — charging, discharging, exporting, importing, balanced, alarm, **peak risk**
+- **14 tunable thresholds** — all persistent across restarts
+- **1 strategy selector** — persistent across restarts
+- built-in automation logic + **3 services** for manual control
 
 ---
 
-## Installatie zonder HACS
+## Install without HACS
 
-### Optie A: Handmatige custom integration
-1. Download deze repo
-2. Kopieer de map `custom_components/sofar_me3000sp/` naar:
-   ```
-   /config/custom_components/sofar_me3000sp/
-   ```
-3. Herstart Home Assistant
-4. Ga naar **Settings → Devices & Services → Add Integration** → "SOFAR ME3000SP"
+<details>
+<summary><b>Option A — manual custom integration</b></summary>
 
-### Optie B: YAML package (geen custom integration)
-Als je liever geen custom integration gebruikt:
+1. Download this repo
+2. Copy `custom_components/sofar_me3000sp/` to `/config/custom_components/sofar_me3000sp/`
+3. Restart Home Assistant
+4. **Settings → Devices & Services → Add Integration** → "SOFAR ME3000SP"
 
-1. Kopieer `home-assistant/packages/sofar_me3000sp.yaml` naar:
-   ```
-   /config/packages/sofar_me3000sp.yaml
-   ```
-2. Voeg aan `configuration.yaml` toe:
+</details>
+
+<details>
+<summary><b>Option B — YAML package (no custom integration)</b></summary>
+
+1. Copy `home-assistant/packages/sofar_me3000sp.yaml` to `/config/packages/`
+2. Add to `configuration.yaml`:
    ```yaml
    homeassistant:
      packages: !include_dir_named packages
    ```
-3. Herstart Home Assistant
+3. Restart Home Assistant
 
-> ⚠️ Bij de YAML package moet je entity-namen handmatig aanpassen als ze anders heten dan de defaults. Bij de HACS integratie doe je dat via de UI-wizard.
+> ⚠️ With the YAML package you must rename entities manually if yours differ
+> from the defaults. The HACS integration handles this via the UI wizard.
+
+</details>
 
 ---
 
-## ESPHome firmware flashen
+## ESPHome firmware
 
-De SOFAR heeft een ESP32 + MAX3485 RS485-module nodig om write-commands te ontvangen.
+The SOFAR needs an ESP32 + MAX3485 RS485 module to accept write commands.
 
-
-### Hardware aansluitschema
-
-![SOFAR hardware aansluitschema](/assets/hardware-wiring-diagram.svg)
+![SOFAR hardware wiring diagram](/assets/hardware-wiring-diagram.svg)
 
 <details>
-<summary>Tekstversie (voor copy/paste)</summary>
+<summary>Text version (copy/paste)</summary>
 
 ```text
-ESP32              MAX3485           SOFAR 485s
-GPIO16 (RX)  ----> RO
-GPIO17 (TX)  ----> DI
-GPIO5        ----> DE + RE (samen)
-3.3V         ----> VCC
-GND          ----> GND
-                    A  ------------>  A (485s poort)
-                    B  ------------>  B (485s poort)
+ESP32               MAX3485            SOFAR 485s
+GPIO16 (RX)  <----  RO
+GPIO17 (TX)  ---->  DI
+GPIO4        ---->  DE + RE (tied together)
+3.3V         ---->  VCC
+GND          ---->  GND
+                     A  ------------>  A (485s port)
+                     B  ------------>  B (485s port)
 ```
 
 </details>
 
-> ⚡ **GPIO5** drijft zowel **DE** als **RE**. Hierdoor schakelt de MAX3485 automatisch tussen TX en RX.  
-> 🔋 Gebruik een **3.3V MAX3485-module**. Een 5V-module kan de ESP32 beschadigen.
+> ⚡ **GPIO4** drives both **DE** and **RE** — the MAX3485 switches between
+> transmit and receive automatically.
+> 🔌 Use a **3.3 V MAX3485 module**. A 5 V module can damage the ESP32.
 
+**Flashing:**
 
+1. Open ESPHome and import `esphome/sofar-me3000sp-esp32.yaml`
+2. Copy `esphome/secrets.yaml.example` to `esphome/secrets.yaml` and fill in
+   your Wi-Fi credentials, API encryption key, and OTA password
+3. Flash via USB the first time, OTA afterwards
 
-### Firmware flashen
-
-1. Open ESPHome
-2. Maak een nieuw device of importeer `esphome/sofar-me3000sp-esp32.yaml`
-3. Kopieer `esphome/secrets.yaml.example` naar `esphome/secrets.yaml` en vul in:
-   ```yaml
-   wifi_ssid: "JOUW_WIFI"
-   wifi_password: "JOUW_WACHTWOORD"
-   api_encryption_key: "GENEREER_IN_ESPHOME"
-   ota_password: "KIES_EEN_WACHTWOORD"
-   fallback_ap_password: "KIES_EEN_WACHTWOORD"
-   ```
-4. Flash via USB (eerste keer), daarna via OTA
-
-### ⚠️ Vereiste: Passive Mode
-De ME3000SP **moet in Passive Mode staan** om write-commands te accepteren.
-Zet dit via het display-menu: `Settings → Work Mode → Passive`
+> ⚠️ **Required: Passive Mode.** The ME3000SP only accepts write commands in
+> Passive Mode. Set it via the display menu: `Settings → Work Mode → Passive`.
 
 ---
 
-## Dashboard toevoegen
+## Strategies
 
-Er zijn twee dashboard-varianten beschikbaar:
+Pick one via **Settings → Devices & Services → SOFAR → Strategy**, or from the
+Control Center dashboard. The selection survives restarts.
 
-### Wall Panel (mooie versie)
-```text
-home-assistant/dashboards/sofar_me3000sp_wall_panel.yaml
-```
-
-Vereist:
-- [HACS](https://hacs.xyz/)
-- [Mushroom Cards](https://github.com/piitaya/lovelace-mushroom)
-- Optioneel: [card-mod](https://github.com/thomasloven/lovelace-card-mod) (voor kleuraccenten)
-
-> **Belangrijk:** de dashboards zijn ontworpen voor de **HACS custom integration**. Gebruik je de YAML package, dan moet je de sensor- en helper-namen handmatig matchen.
-
-**Hoe toe te voegen:**
-1. Open je dashboard
-2. Kies **Edit dashboard → Add card → Manual**
-3. Plak de inhoud vanaf `type: vertical-stack` (niet de `wall_panel:` wrapper)
-
-> Zonder card-mod werken de kleurranden en glow niet, maar de kaart blijft functioneel.
-
-### Live Decision (nieuw! — visueel)
-```text
-home-assistant/dashboards/sofar_me3000sp_live_decision.yaml
-```
-Toont in real-time de actieve mode, de reden van de beslissing, live energy flow chips, SOC gauge en laad/ontlaad sliders.
-Vereist: HACS + Mushroom Cards + optioneel card-mod.
-
-### Mushroom Basic (eenvoudiger)
-```text
-home-assistant/dashboards/sofar_me3000sp_mushroom_basic.yaml
-```
-Vereist alleen Mushroom Cards.
-
----
-
-## Blueprint automations (optioneel)
-
-Naast de ingebouwde automatie (HACS integratie) en de YAML package, zijn er ook **6 Blueprint automations** beschikbaar. Deze laten je de automations via de HA UI aanpassen zonder YAML te bewerken.
-
-### Blueprints gebruiken
-1. Kopieer de bestanden uit `blueprints/automation/` naar:
-   ```
-   /config/blueprints/automation/
-   ```
-2. Ga naar **Settings → Automations & Scenes → Blueprints**
-3. Je ziet nu 6 SOFAR blueprints:
-   - **Baseline Auto at Sunrise** — zet inverter naar auto bij zonsopgang
-   - **Charge on Export Surplus** — laad bij echte export + voldoende PV
-   - **Discharge on Import Deficit** — ontlaad bij echte import
-   - **Return to Auto on Grid Balance** — terug naar auto bij balans
-   - **Alarm Emergency Stop** — standby bij alarm + notificatie
-   - **Force Charge on Critical Low SOC** — force-charge bij kritiek lage SOC
-4. Klik **Create Automation** bij de gewenste blueprint
-5. Vul de entities en drempels in via de UI
-
-> 💡 Blueprints zijn optioneel. De HACS integratie heeft alle automatie ingebouwd. Blueprints zijn handig als je de regels via de UI wilt finetunen zonder code.
-
----
-
-## 🎯 Strategie kiezen
-
-De integratie biedt 6 strategieën die je via de UI kunt kiezen:
-
-| Strategie | Wanneer | Werking |
+| Strategy | When | Behaviour |
 |---|---|---|
-| **Zelfconsumptie** | Default, veel PV | Laad bij surplus, ontlaad bij import |
-| **Peak-shaving** | Hele jaar | Ontlaad alleen als import > piekdrempel (bv 2500W) |
-| **Nachtbesparing** | 's Nachts geen PV | Geen discharge 22:00-06:00, bewaar batterij |
-| **Forceer laden** | Handmatig | Laad batterij nu |
-| **Forceer ontladen** | Handmatig | Ontlaad batterij nu |
-| **Auto** | Vakantie/uit | SOFAR bepaalt zelf |
+| **Self-consumption** | Default, plenty of PV | Charge on surplus, discharge on import, back to auto on balance |
+| **Peak shaving** | Capacity tariff regions | Controls the **projected quarter-hour average** — see below |
+| **Night save** | No PV overnight | **Standby** during night hours (default 22:00–06:00): battery is preserved for the morning; charging on surplus stays allowed. Self-consumption during the day |
+| **Force charge** | Manual override | Charge unconditionally at the configured rate |
+| **Force discharge** | Manual override | Discharge unconditionally down to minimum SOC |
+| **Auto** | Holiday / hands-off | The SOFAR runs its own firmware logic |
 
-Wijzig via **Settings → Devices & Services → SOFAR → Strategy** of via het Control Center dashboard.
+**Priority chain** (evaluated before any strategy):
+`ALARM → standby` › `SOC critical → force charge` › *selected strategy* ›
+hold timers (5–10 min anti-flapping) › rate throttle (≥ 60 s, ≥ 200 W delta).
 
-> 💡 **Peak-shaving tip**: je leverancier kijkt op maandbasis naar de maximale capaciteit die je minstens 15 min onafgebroken verbrukt hebt. Stel de piekdrempel in op bv 2200W om je maandelijkse piek af te vlakken en je factuur te verlagen.
+---
 
-## 📊 Control Center dashboard
+## Quarter-peak tracking (capacity tariff)
+
+Grid operators with a capacity tariff (e.g. **Fluvius** in Flanders) bill on the
+highest average import power per **clock quarter** (:00 / :15 / :30 / :45) of
+the month. A 30-second spike is irrelevant; a quietly elevated quarter is not.
+
+The integration runs a clock-aligned, time-weighted quarter tracker, and the
+**peak shaving strategy controls the projection**, not the instantaneous power:
 
 ```text
-home-assistant/dashboards/sofar_me3000sp_control_center.yaml
+P_projected = ( E_so_far + P_now × t_remaining ) / 900
+
+discharge   = P_now − budget      where  budget = ( threshold × 900 − E_so_far ) / t_remaining
 ```
 
-Centraal controlepaneel met strategie-kiezer, live status, peak-tracking, beslissingslogica en instellingen.
+The battery discharges *exactly* enough to land the quarter on the threshold —
+no panic discharge on spikes, no missed creeping overruns, minimal battery wear.
 
----
-
-## Wat doet de automatie?
-
-| Situatie | Actie |
+| Entity | Answers |
 |---|---|
-| Echte export > drempel + PV hoog + SOC < max | **Charge** met variabel vermogen op basis van surplus |
-| Echte import > drempel + SOC > min | **Discharge** met variabel vermogen op basis van deficit |
-| Netflow bijna nul | **Auto** (neutrale baseline) |
-| SOC < 20% (kritisch) | **Force charge** op 1500W tot 50% bereikt |
-| Alarm/fault | **Standby** + notificatie |
-| Zonsopgang | **Auto** (baseline reset) |
+| `sensor.sofar_quarter_time_remaining` | How long does the running measurement still count? (+ end time, mm:ss) |
+| `sensor.sofar_quarter_avg_w` | Time-weighted average of the current quarter so far |
+| `sensor.sofar_quarter_projected_w` | Where does this quarter land if current power holds? |
+| `sensor.sofar_quarter_budget_w` | How much can I still draw without breaching the threshold? |
+| `sensor.sofar_monthly_peak_w` | Highest closed quarter this month — persistent, monthly rollover |
+| `binary_sensor.sofar_peak_risk` | Is this quarter about to raise my monthly peak? → notification trigger |
 
-### Belangrijke eigenschappen
-- **Variabel vermogen**: niet constant, maar dynamisch aangepast aan de actuele energieflow
-- **Hysterese**: 5 minuten stabiliteit vereist vóór schakelen (10 min voor balans)
-- **Veiligheid eerst**: alarm → standby, lage SOC → force charge
-- **CT-klemmen genegeerd**: alle beslissingen op basis van slimme meter + PV
+`sensor.sofar_decision_reason` explains every decision in plain language and
+carries machine-readable attributes (`strategy`, `active_hold`,
+`hold_remaining_s`, quarter data) for dashboards and automations.
 
 ---
 
-## Tuning en aanpassen
+## What the automation does
 
-Na installatie krijg je 11 tunable drempels die je via de UI kunt aanpassen:
+| Situation | Action |
+|---|---|
+| Real export > threshold + PV high + SOC < max | **Charge**, rate follows the smoothed surplus |
+| Real import > threshold + SOC > min | **Discharge**, rate follows the smoothed deficit |
+| Projected quarter average > peak threshold *(peak shaving)* | **Discharge** exactly enough to hold the projection at the threshold |
+| Net flow near zero | **Auto** (neutral baseline) |
+| SOC below critical level | **Force charge** until target SOC |
+| Alarm / fault | **Standby**, always, regardless of strategy |
 
-| Helper | Default | Doel |
+**Properties:** variable power (never constant), hysteresis via hold timers,
+per-direction rate throttling, mode writes only on change (no Modbus spam),
+safety first, CT clamps ignored.
+
+---
+
+## Tuning
+
+14 thresholds, adjustable via the UI, persistent across restarts:
+
+| Helper | Default | Purpose |
 |---|---:|---|
-| Export Start W | 400 W | Wanneer start laden? |
-| Import Start W | 300 W | Wanneer start ontladen? |
-| PV Min W | 700 W | Minimale PV voor laden |
-| Balance W | 150 W | Wanneer is flow "in balans"? |
-| Charge Margin W | 150 W | Veiligheidsmarge bij laden |
-| Discharge Margin W | 250 W | Veiligheidsmarge bij ontladen |
-| SOC Max Charge | 95 % | Stop laden boven dit % |
-| SOC Min Discharge | 35 % | Stop ontladen onder dit % |
-| SOC Force Charge | 20 % | Force-charge start onder dit % |
-| SOC Force Charge Target | 50 % | Force-charge stopt boven dit % |
-| Force Charge Rate | 1500 W | Vermogen tijdens force-charge |
+| Export Start W | 400 W | When does charging start? |
+| Import Start W | 300 W | When does discharging start? |
+| PV Min W | 700 W | Minimum PV before charging |
+| Balance W | 150 W | When is the flow "balanced"? |
+| Charge Margin W | 150 W | Safety margin while charging |
+| Discharge Margin W | 250 W | Safety margin while discharging |
+| SOC Max Charge | 95 % | Stop charging above this |
+| SOC Min Discharge | 35 % | Stop discharging below this |
+| SOC Force Charge | 20 % | Force charge starts below this |
+| SOC Force Charge Target | 50 % | Force charge stops above this |
+| Force Charge Rate | 1500 W | Power during force charge |
+| Peak Threshold W | 2500 W | Quarter-average ceiling for peak shaving |
+| Night Start Hour | 22 | Night save window start |
+| Night End Hour | 6 | Night save window end |
 
-> Startwaarden zijn conservatief. Pas ze pas aan na een paar dagen observatie.
-
-### Andere PV-omvormer of slimme meter?
-Zie [`docs/AANPASSEN.md`](docs/AANPASSEN.md) voor entity-naam aanpassingen.
+> Defaults are conservative. Observe a few days before tuning.
+> Different PV inverter or smart meter? See [`docs/AANPASSEN.md`](docs/AANPASSEN.md).
 
 ---
 
-## Services voor handmatige controle
+## Manual control services
 
-De integratie registreert 3 services die je via **Developer Tools → Services** kunt aanroepen:
+Available via **Developer Tools → Services**:
 
-### `sofar_me3000sp.set_mode`
-Stel de inverter mode handmatig in.
 ```yaml
 service: sofar_me3000sp.set_mode
 data:
-  mode: "auto"  # auto, charge, discharge of standby
+  mode: "auto"        # auto · charge · discharge · standby
 ```
 
-### `sofar_me3000sp.set_charge_rate`
-Stel het laadvermogen in (0-3000W).
 ```yaml
 service: sofar_me3000sp.set_charge_rate
 data:
-  rate: 1500
+  rate: 1500          # 0–3000 W
 ```
 
-### `sofar_me3000sp.set_discharge_rate`
-Stel het ontlaadvermogen in (0-3000W).
 ```yaml
 service: sofar_me3000sp.set_discharge_rate
 data:
-  rate: 1500
+  rate: 1500          # 0–3000 W
 ```
 
 ---
 
-## Alle bestanden in deze repo
+## Dashboards
 
-| Bestand | Doel |
-|---|---|
-| `custom_components/sofar_me3000sp/` | **HACS custom integration** — UI-wizard, sensors, automations, services |
-| `home-assistant/packages/sofar_me3000sp.yaml` | Alternatief: drop-in YAML package (zonder custom integration) |
-| `home-assistant/packages/sofar_me3000sp_template_sensors_only.yaml` | Compacte template-sensors alleen (zonder automations) |
-| `home-assistant/dashboards/sofar_me3000sp_control_center.yaml` | **Control Center** — strategie, peak-tracking, instellingen |
-| `home-assistant/dashboards/sofar_me3000sp_mushroom_basic.yaml` | Eenvoudigere Mushroom dashboardkaart |
-| `esphome/sofar-me3000sp-esp32.yaml` | ESP32/MAX3485 firmware voor SOFAR control |
-| `esphome/secrets.yaml.example` | Voorbeeld secrets (kopieer naar secrets.yaml) |
-| `docs/INSTALLATIE.md` | Stap-voor-stap installatie voor beginners |
-| `docs/TROUBLESHOOTING.md` | Uitgebreide foutzoekgids |
-| `docs/ARCHITECTUUR.md` | Uitleg van de regelstrategie |
-| `blueprints/automation/` | 6 Blueprint automations (UI-aanpasbaar) |
-| `docs/AANPASSEN.md` | Hoe pas je dit aan voor jouw setup? |
-| `docs/ARCHITECTUUR.md` | Uitleg van de regelstrategie |
-| `CHANGELOG.md` | Wat is er veranderd per versie? |
-| `hacs.json` | HACS metadata |
+Four Lovelace views under `home-assistant/dashboards/`:
+
+| Dashboard | Purpose | Needs |
+|---|---|---|
+| `..._control_center.yaml` | **Control Center** — strategy selector, peak tracking, decision logic, all settings in one place | Mushroom Cards |
+| `..._live_decision.yaml` | Real-time mode, decision reason, energy flow chips, SOC gauge, rate sliders | Mushroom Cards, card-mod optional |
+| `..._wall_panel.yaml` | Polished wall panel | Mushroom Cards, card-mod optional |
+| `..._mushroom_basic.yaml` | Compact card set | Mushroom Cards |
+
+Add via **Edit dashboard → Add card → Manual** and paste from
+`type: vertical-stack` (skip the wrapper key). Without card-mod the colour
+accents disappear but everything stays functional.
+
+> The dashboards target the **HACS integration** entity names. With the YAML
+> package, match the names manually.
 
 ---
 
-## Vereisten
+## Blueprint automations
 
-### Hardware
+Six UI-configurable blueprints in `blueprints/automation/` — optional, since
+the integration has all automation built in, but handy for fine-tuning rules
+without touching code:
+
+| Blueprint | Does |
+|---|---|
+| Charge on Export Surplus | Charge on real export + sufficient PV |
+| Discharge on Import Deficit | Discharge on real import |
+| Return to Auto on Grid Balance | Back to auto when balanced |
+| Baseline Auto at Sunrise | Reset to auto at sunrise |
+| Alarm Emergency Stop | Standby + notification on fault |
+| Force Charge on Critical Low SOC | Emergency charge at critical SOC |
+
+Copy them to `/config/blueprints/automation/` or import via the `source_url`
+in each file, then **Settings → Automations & Scenes → Blueprints**.
+
+---
+
+## Repository map
+
+| Path | Purpose |
+|---|---|
+| `custom_components/sofar_me3000sp/` | **The HACS integration** — config flow, automation engine, entities, services |
+| `esphome/sofar-me3000sp-esp32.yaml` | ESP32/MAX3485 firmware — Modbus FC 0x42 passive-mode control |
+| `esphome/secrets.yaml.example` | Secrets template (real secrets are gitignored) |
+| `blueprints/automation/` | 6 UI-configurable blueprints |
+| `home-assistant/dashboards/` | 4 Lovelace dashboards |
+| `home-assistant/packages/` | YAML package alternative + standalone template sensors |
+| `docs/` | Installation · Architecture · Customisation · Troubleshooting *(Dutch, translations welcome)* |
+| `assets/` | Architecture photo + wiring diagram |
+| `CHANGELOG.md` | Per-version history |
+
+---
+
+## Requirements
+
+**Hardware**
 - SOFAR ME3000SP in **Passive Mode**
 - ESP32 dev board
-- MAX3485 RS485-module (3.3V, rood board, met DE/RE flow-control)
-- Slimme meter met Home Assistant integratie
-- PV-omvormer met Home Assistant integratie
+- MAX3485 RS485 module (**3.3 V**, with DE/RE flow control)
+- Smart meter integrated in Home Assistant
+- PV inverter integrated in Home Assistant
 
-### Software
-- Home Assistant 2024.1.0 of nieuwer
-- ESPHome add-on of losse installatie
-- Voor het dashboard: HACS + Mushroom Cards
-- Optioneel: card-mod voor extra kleuraccenten
+**Software**
+- Home Assistant **2024.2.0** or newer
+- ESPHome (add-on or standalone)
+- For the dashboards: HACS + Mushroom Cards, card-mod optional
 
-### Home Assistant bronentities
-Deze moeten bij jou bestaan:
+---
+
+## Safety checklist
+
+- [ ] SOFAR is in **Passive Mode** (display menu)
+- [ ] MAX3485 A/B correctly wired to the 485s port
+- [ ] ESPHome entity names match what you selected in the wizard
+- [ ] Home Assistant config check is green before restarting
+- [ ] SOC and fault sensors are available (not `unavailable`)
+
+---
+
+## Troubleshooting · Architecture · Changelog
+
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — sensors unavailable, Modbus CRC errors, mode not changing, and more
+- [`docs/ARCHITECTUUR.md`](docs/ARCHITECTUUR.md) — the control strategy in depth
+- [`CHANGELOG.md`](CHANGELOG.md) — including the full v2.2.0 rework of the decision engine and quarter-peak tracker
+
+---
+
+## License
+
+MIT — free to use, modify, and share.
 
 ```text
-sensor.electricity_meter_energieproductie   # export in kW
-sensor.electricity_meter_energieverbruik     # import in kW
-sensor.sunny_pv_power                        # PV power in W
+░█▄█░█▀█░█▀▄░░░█▀▀░█▀▀░▀█▀░█▀▀░█▀█░█▀▀░█▀▀░░░█░░░█▀█░█▀▄
+░█░█░█▀█░█░█░░░▀▀█░█░░░░█░░█▀▀░█░█░█░░░█▀▀░░░█░░░█▀█░█▀▄
+░▀░▀░▀░▀░▀▀░░░░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░░░▀▀▀░▀░▀░▀▀░
 ```
-
-> Als jouw entity-namen anders zijn: bij de HACS integratie kies je ze via de wizard. Bij de YAML package pas je ze aan met zoeken-en-vervangen.
-
----
-
-## Veiligheid
-
-Controleer altijd vóór gebruik:
-
-- [ ] SOFAR staat in **Passive Mode** (via display-menu)
-- [ ] MAX3485 A/B correct aangesloten op de 485s-poort
-- [ ] ESPHome entity-namen komen overeen met wat je in de wizard invult
-- [ ] Home Assistant config check is groen vóór herstart
-- [ ] Batterij SOC en fault sensors zijn beschikbaar (niet `unavailable`)
-
----
-
-## Troubleshooting
-
-Zie [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) voor uitgebreide foutzoeking, inclusief:
-
-- Package laadt niet
-- Sensors blijven unavailable
-- Automations schakelen niet
-- ESPHome kan geen verbinding maken met SOFAR
-- Modbus CRC errors
-- Batterij laadt/ontlaadt niet
-- Mode verandert niet in HA
-- Andere PV-omvormer of slimme meter
-
----
-
-## Architectuur
-
-Zie [`docs/ARCHITECTUUR.md`](docs/ARCHITECTUUR.md) voor de volledige uitleg van de regelstrategie.
-
-**Kernprincipe:** De SOFAR ME3000SP wordt behandeld als actuator. Home Assistant beslist op basis van externe, betrouwbare metingen.
-
----
-
-## Changelog
-
-Zie [`CHANGELOG.md`](CHANGELOG.md) voor alle wijzigingen per versie.
-
----
-
-## Licentie
-
-MIT — vrij te gebruiken, aanpassen en delen.
+*"Measured, not guessed."*
