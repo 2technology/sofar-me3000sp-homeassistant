@@ -12,11 +12,11 @@ from __future__ import annotations
 
 import datetime as dt
 import sys
-from pathlib import Path
 
 # Import the tracker without pulling in Home Assistant: quarter.py only
 # depends on const.QUARTER_SECONDS, so a stub const module suffices.
 import types
+from pathlib import Path
 
 _COMPONENT = Path(__file__).parent.parent / "custom_components" / "sofar_me3000sp"
 
