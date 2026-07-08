@@ -12,7 +12,10 @@
 
 _Driven by your smart meter + PV inverter. The SOFAR is the actuator, Home Assistant is the brain._
 
-[![Version](https://img.shields.io/badge/version-2.5.1-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
+> **Mad Science Lab operating principle:** *"Gissen is missen, gokken is jokken."*  
+> Every decision is measured, stored, and reported. The sensors read the store — they never invent their own logic.
+
+[![Version](https://img.shields.io/badge/version-2.5.3-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
 [![HACS](https://img.shields.io/badge/HACS-custom-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](https://hacs.xyz/)
 [![Home Assistant](https://img.shields.io/badge/Home_Assistant-2024.2%2B-39FF8A?style=for-the-badge&labelColor=0E1A2B)](https://www.home-assistant.io/)
 [![Protocol](https://img.shields.io/badge/Modbus-FC_0x42_passive-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](docs/ARCHITECTUUR.md)
@@ -122,14 +125,16 @@ The SOFAR needs an ESP32 + MAX3485 RS485 module to accept write commands.
 <summary><b>🔧 Text version (copy/paste)</b></summary>
 
 ```text
-ESP32               MAX3485            SOFAR 485s
-GPIO16 (RX)  <----  RO
-GPIO17 (TX)  ---->  DI
-GPIO4        ---->  DE + RE (tied together)
-3.3V         ---->  VCC
-GND          ---->  GND
-                     A  ------------>  A (485s port)
-                     B  ------------>  B (485s port)
+        ESP32                      MAX3485                  SOFAR ME3000SP
+   ┌─────────────┐          ┌─────────────┐              ┌─────────────┐
+   │ GPIO17 (TX) │─────────→│ DI          │              │             │
+   │ GPIO16 (RX) │←─────────│ RO          │              │             │
+   │ GPIO4       │─────────→│ DE + RE     │              │             │
+   │ 3.3V        │─────────→│ VCC         │              │             │
+   │ GND         │─────────→│ GND         │              │             │
+   └─────────────┘          │ A           │─────────────→│ 485s-A      │
+                            │ B           │─────────────→│ 485s-B      │
+                            └─────────────┘              └─────────────┘
 ```
 
 </details>
@@ -153,14 +158,20 @@ Pick one via **Settings → Devices & Services → SOFAR → Strategy**, or from
 
 | Strategy | Icon | When to use | Behaviour |
 |---|---|---|---|
-| **Self-consumption** | ☀️ | Default, sunny days | Charge on surplus, discharge on import, auto on balance. Forecast-aware. |
-| **Peak shaving** | 🪒 | Capacity tariff regions | Controls the **projected quarter-hour average** to stay under your threshold. |
-| **Night save** | 🌙 | Overnight | Battery on standby 22:00–06:00, preserved for the morning. |
+| **Self-consumption** | ☀️ | Default, sunny days | Charge on surplus, discharge on import, auto on balance. **Forecast-aware.** |
+| **Peak shaving** | 🪒 | Capacity-tariff regions | Controls the **projected quarter-hour average**, not instantaneous power. Spikes are ignored; creeping overruns are caught. |
+| **Night save** | 🌙 | Overnight | Battery on **standby** 22:00–06:00 (default), preserved for morning. Surplus charging still allowed. |
 | **Force charge** | ⚡ | Manual override | Charge unconditionally at configured rate. |
 | **Force discharge** | 🔋 | Manual override | Discharge unconditionally down to minimum SOC. |
 | **Auto** | 🤖 | Hands-off | Let the SOFAR firmware decide. |
 
-**Priority chain:** `ALARM → standby` > `SOC critical → force charge` > `selected strategy` > `hold timers` > `rate throttle`.
+**Priority chain** (evaluated before any strategy):
+
+```text
+ALARM ── SOC CRITICAL ── SELECTED STRATEGY ── HOLD TIMERS ── RATE THROTTLE
+  │          │                  │              │               │
+standby  force charge      charge/discharge  5–10 min      ≥60 s & ≥200 W
+```
 
 ---
 
@@ -357,6 +368,7 @@ Copy them to `/config/blueprints/automation/` or import via `source_url` in each
 
 ## 📚 Documentation
 
+- [`docs/index.html`](docs/index.html) — **visual one-page architecture reference** *(open in browser / GitHub Pages)*
 - [`docs/INSTALLATIE.md`](docs/INSTALLATIE.md) — step-by-step installation guide *(Dutch)*
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — sensors unavailable, Modbus CRC errors, mode not changing
 - [`docs/ARCHITECTUUR.md`](docs/ARCHITECTUUR.md) — the control strategy in depth

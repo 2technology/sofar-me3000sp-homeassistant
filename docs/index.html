@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<!-- saved from url=(0064)file:///C:/Users/geert/Downloads/sofar-me3000sp-infographic.html -->
+<html lang="nl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOFAR ME3000SP Control Stack — Mad Science Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#0E1A2B; --panel:#12233A; --panel2:#0F1E33; --line:#1E3350;
+    --green:#39FF8A; --pink:#FF5C8A; --amber:#FFC145;
+    --text:#E0E0E0; --dim:#7E93AC; --faint:#4A5F7A;
+    --mono:'JetBrains Mono',ui-monospace,'Cascadia Code',Menlo,monospace;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);
+       font-size:14px;line-height:1.5;padding:32px 16px 48px}
+  .wrap{max-width:1080px;margin:0 auto}
+
+  /* ---------- header ---------- */
+  .pagga{font-family:var(--mono);white-space:pre;color:var(--green);
+         font-size:clamp(9px,2.4vw,20px);line-height:1.15;
+         text-shadow:0 0 18px rgba(57,255,138,.35)}
+  .header{border:1px solid var(--line);border-radius:8px;padding:24px 28px;
+          background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);
+          display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between}
+  .header .sub{font-family:var(--mono);color:var(--dim);letter-spacing:.18em;
+               font-size:12px;margin-top:10px;text-transform:uppercase}
+  .badges{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .chip{font-family:var(--mono);font-size:12px;border:1px solid var(--line);
+        padding:4px 12px;border-radius:99px;color:var(--dim)}
+  .chip b{color:var(--green);font-weight:700}
+  .chip.pink b{color:var(--pink)}
+
+  /* ---------- section scaffolding ---------- */
+  section{margin-top:36px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.25em;
+           color:var(--faint);text-transform:uppercase;margin-bottom:6px}
+  h2{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--text);
+     margin-bottom:16px}
+  h2::before{content:'▚ ';color:var(--green)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- SIGNATURE: circuit spine ---------- */
+  .spine{position:relative;padding-left:64px}
+  .spine::before{content:'';position:absolute;left:24px;top:8px;bottom:8px;width:2px;
+                 background:linear-gradient(180deg,var(--green),var(--pink))}
+  .packet{position:absolute;left:20px;width:10px;height:10px;border-radius:50%;
+          background:var(--green);box-shadow:0 0 12px var(--green);
+          animation:flowdown 5s linear infinite}
+  .packet.up{background:var(--pink);box-shadow:0 0 12px var(--pink);
+             animation:flowup 5s linear infinite;animation-delay:2.5s}
+  @keyframes flowdown{0%{top:2%;opacity:0}8%{opacity:1}92%{opacity:1}100%{top:96%;opacity:0}}
+  @keyframes flowup{0%{top:96%;opacity:0}8%{opacity:1}92%{opacity:1}100%{top:2%;opacity:0}}
+  @media (prefers-reduced-motion:reduce){.packet{animation:none;display:none}}
+
+  .station{position:relative;background:var(--panel);border:1px solid var(--line);
+           border-radius:8px;padding:18px 20px;margin-bottom:22px}
+  .station::before{content:'';position:absolute;left:-46px;top:26px;width:14px;height:14px;
+                   border-radius:50%;background:var(--bg);border:3px solid var(--green)}
+  .station.write::before{border-color:var(--pink)}
+  .station::after{content:'';position:absolute;left:-32px;top:32px;width:32px;height:2px;
+                  background:var(--line)}
+  .station h3{font-family:var(--mono);font-size:15px;color:var(--green);margin-bottom:4px}
+  .station.write h3{color:var(--pink)}
+  .station .layer{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--faint)}
+  .station p{color:var(--dim);font-size:13px;margin-top:6px}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .tag{font-family:var(--mono);font-size:11px;border:1px solid var(--line);
+       border-radius:4px;padding:2px 8px;color:var(--text);background:var(--panel2)}
+  .tag.g{color:var(--green);border-color:rgba(57,255,138,.35)}
+  .tag.p{color:var(--pink);border-color:rgba(255,92,138,.35)}
+  .tag.a{color:var(--amber);border-color:rgba(255,193,69,.35)}
+
+  .legend{display:flex;gap:24px;margin-bottom:18px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+  .legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+
+  /* ---------- strategy grid ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .strat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px 18px;
+         border-left:3px solid var(--green)}
+  .strat.manual{border-left-color:var(--pink)}
+  .strat.passive{border-left-color:var(--faint)}
+  .strat h4{font-family:var(--mono);font-size:14px;margin-bottom:4px}
+  .strat .key{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .strat p{font-size:12.5px;color:var(--dim);margin-top:6px}
+
+  /* ---------- kwartier panel ---------- */
+  .qbar{position:relative;height:34px;background:var(--panel2);border:1px solid var(--line);
+        border-radius:6px;overflow:hidden;margin:16px 0 6px}
+  .qfill{position:absolute;inset:0;width:62%;
+         background:linear-gradient(90deg,rgba(57,255,138,.25),rgba(57,255,138,.55))}
+  .qrest{position:absolute;top:0;bottom:0;left:62%;right:0;
+         background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(255,92,138,.18) 6px 12px)}
+  .qlabel{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px}
+  .qticks{display:flex;justify-content:space-between;font-family:var(--mono);
+          font-size:10px;color:var(--faint);margin-bottom:16px}
+  .formula{font-family:var(--mono);font-size:13px;color:var(--text);background:var(--panel2);
+           border:1px solid var(--line);border-radius:6px;padding:12px 16px;margin:14px 0;
+           overflow-x:auto;white-space:nowrap}
+  .formula .g{color:var(--green)} .formula .p{color:var(--pink)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;
+     color:var(--faint);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:8px 10px;border-bottom:1px solid rgba(30,51,80,.5);color:var(--dim)}
+  td:first-child{font-family:var(--mono);color:var(--text);font-size:12px}
+  tr:last-child td{border-bottom:none}
+
+  /* ---------- decision chain ---------- */
+  .chain{display:flex;flex-wrap:wrap;gap:0;align-items:stretch;font-family:var(--mono);font-size:12px}
+  .chain .step{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+               padding:10px 14px;position:relative;margin:6px 26px 6px 0}
+  .chain .step::after{content:'▶';position:absolute;right:-20px;top:50%;
+                      transform:translateY(-50%);color:var(--faint);font-size:10px}
+  .chain .step:last-child::after{content:''}
+  .chain .step b{display:block;font-size:12px}
+  .chain .step span{color:var(--faint);font-size:10.5px}
+  .chain .step.alarm b{color:var(--pink)}
+  .chain .step.force b{color:var(--amber)}
+  .chain .step.strat b{color:var(--green)}
+
+  /* ---------- pinout ---------- */
+  .pinout{display:grid;grid-template-columns:1fr auto 1fr;gap:0;align-items:center;
+          font-family:var(--mono);font-size:12px}
+  .pincol{display:flex;flex-direction:column;gap:8px}
+  .pin{border:1px solid var(--line);border-radius:6px;padding:8px 12px;background:var(--panel2)}
+  .pin b{color:var(--green)}
+  .pincol.right .pin b{color:var(--pink)}
+  .buslines{padding:0 18px;color:var(--faint);text-align:center;font-size:11px;line-height:2.4}
+  .warn{border:1px solid rgba(255,193,69,.4);background:rgba(255,193,69,.06);
+        border-radius:6px;padding:10px 14px;margin-top:14px;font-size:12.5px;color:var(--amber);
+        font-family:var(--mono)}
+
+  /* ---------- repo tree ---------- */
+  pre.tree{font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--dim);
+           overflow-x:auto}
+  pre.tree .d{color:var(--green)} pre.tree .f{color:var(--text)}
+  pre.tree .c{color:var(--faint);font-style:italic}
+
+  /* ---------- footer ---------- */
+  footer{margin-top:44px;text-align:center;border-top:1px solid var(--line);padding-top:28px}
+  footer .pagga{font-size:clamp(6px,1.6vw,13px);color:var(--pink);
+                text-shadow:0 0 14px rgba(255,92,138,.3)}
+  footer .motto{font-family:var(--mono);color:var(--faint);font-size:12px;margin-top:14px}
+
+  @media (max-width:640px){
+    .spine{padding-left:44px}
+    .spine::before{left:14px}
+    .packet{left:10px}
+    .station::before{left:-36px}
+    .station::after{left:-22px;width:22px}
+    .pinout{grid-template-columns:1fr}
+    .buslines{padding:12px 0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ HEADER ============ -->
+  <div class="header">
+    <div>
+      <div class="pagga">░█▀▀░█▀█░█▀▀░█▀█░█▀▄
+░▀▀█░█░█░█▀▀░█▀█░█▀▄
+░▀▀▀░▀▀▀░▀░░░▀░▀░▀░▀</div>
+      <div class="sub">ME3000SP Control Stack · HACS Custom Integration · Mad Science Lab</div>
+    </div>
+    <div class="badges">
+      <span class="chip">versie <b>v2.5.3</b></span>
+      <span class="chip pink">licentie <b>MIT</b></span>
+      <span class="chip mono">github.com/2technology/sofar-me3000sp-homeassistant</span>
+    </div>
+  </div>
+
+  <!-- ============ SYSTEM FLOW ============ -->
+  <section>
+    <div class="eyebrow">architectuur</div>
+    <h2>Systeem-flow — van meter tot omvormer</h2>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--green)"></span>telemetrie (lezen)</span>
+      <span><span class="dot" style="background:var(--pink)"></span>commando's (schrijven)</span>
+    </div>
+    <div class="spine">
+      <div class="packet"></div>
+      <div class="packet up"></div>
+
+      <div class="station">
+        <div class="layer">LAAG 4 · BRONNEN</div>
+        <h3>Slimme meter (P1) + PV-omvormer</h3>
+        <p>De waarheid komt van buiten: netto import/export in kW van de digitale meter en
+           actueel PV-vermogen. De SOFAR zelf is nooit de bron van net-data.</p>
+        <div class="tags">
+          <span class="tag g">grid import kW</span><span class="tag g">grid export kW</span>
+          <span class="tag g">PV vermogen W</span>
+        </div>
+      </div>
+
+      <div class="station">
+        <div class="layer">LAAG 3 · HOME ASSISTANT — custom_components/sofar_me3000sp</div>
+        <h3>Automation engine — single source of truth</h3>
+        <p>Elke meterupdate + elke 60 s draait de beslislogica. Zij schrijft haar volledige
+           toestand (reden, holds, kwartier-tracker, maandpiek) in de store en broadcast een
+           dispatcher-signaal. Sensoren rapporteren die store — nooit eigen logica.</p>
+        <div class="tags">
+          <span class="tag g">12 sensoren</span><span class="tag g">7 binaire sensoren</span>
+          <span class="tag p">14 number-helpers</span><span class="tag p">1 strategie-select</span>
+          <span class="tag p">3 services</span><span class="tag a">kwartier-tracker</span>
+          <span class="tag a">RestoreEntity/-Number/-Sensor</span>
+        </div>
+      </div>
+
+      <div class="station write">
+        <div class="layer">LAAG 2 · ESPHOME — esphome/sofar-me3000sp-esp32.yaml</div>
+        <h3>ESP32 · Modbus-brug</h3>
+        <p>Native API naar HA; <span class="mono">modbus_controller</span> spreekt de SOFAR aan met
+           functiecode <span class="mono" style="color:var(--pink)">0x42</span> (Passive Mode-protocol).
+           Boot-default: auto-modus, veilig bij stroomuitval.</p>
+        <div class="tags">
+          <span class="tag p">mode select</span><span class="tag p">charge rate W</span>
+          <span class="tag p">discharge rate W</span><span class="tag g">SOC %</span>
+          <span class="tag g">fault status</span>
+        </div>
+      </div>
+
+      <div class="station write">
+        <div class="layer">LAAG 1 · HARDWARE</div>
+        <h3>MAX3485 → RS485 → SOFAR ME3000SP</h3>
+        <p>TTL-naar-RS485 op 3.3 V met half-duplex flow control: GPIO4 drijft DE+RE samen en
+           schakelt de bus tussen zenden en luisteren.</p>
+        <div class="tags">
+          <span class="tag">GPIO17 → DI</span><span class="tag">GPIO16 ← RO</span>
+          <span class="tag">GPIO4 → DE+RE</span><span class="tag">A/B → 485s</span>
+          <span class="tag a">inverter in PASSIVE MODE</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STRATEGIEEN ============ -->
+  <section>
+    <div class="eyebrow">beslislogica</div>
+    <h2>Zes strategieën</h2>
+    <div class="grid">
+      <div class="strat">
+        <h4>Zelfconsumptie</h4><div class="key">self_consumption · default</div>
+        <p>Surplus → laden (gesmootht, 5 min hold) · tekort → ontladen · balans → terug naar auto na 10 min. Rate-updates gethrottled per richting.</p>
+      </div>
+      <div class="strat">
+        <h4>Peak-shaving</h4><div class="key">peak_shaving · capaciteitstarief</div>
+        <p>Stuurt op het <b style="color:var(--green)">geprojecteerde kwartiergemiddelde</b>, niet op momentaan vermogen. Ontlaadt exact genoeg om de projectie op de drempel te houden; spikes worden genegeerd.</p>
+      </div>
+      <div class="strat">
+        <h4>Nachtbesparing</h4><div class="key">night_save · 22:00–06:00 instelbaar</div>
+        <p>'s Nachts standby: batterij wordt gespaard voor de ochtend. Laden op surplus blijft toegestaan; overdag gedraagt hij zich als zelfconsumptie.</p>
+      </div>
+      <div class="strat manual">
+        <h4>Forceer laden</h4><div class="key">force_charge · handmatige override</div>
+        <p>Onvoorwaardelijk laden aan de ingestelde force-rate, ongeacht net of PV.</p>
+      </div>
+      <div class="strat manual">
+        <h4>Forceer ontladen</h4><div class="key">force_discharge · handmatige override</div>
+        <p>Onvoorwaardelijk ontladen tot minimum-SOC; rate volgt het tekort plus marge.</p>
+      </div>
+      <div class="strat passive">
+        <h4>Auto</h4><div class="key">auto · SOFAR bepaalt</div>
+        <p>De integratie doet niets; de omvormer draait zijn eigen self-use firmware-logica.</p>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px">
+      <div class="eyebrow" style="margin-bottom:10px">prioriteitsketen — vóór elke strategie</div>
+      <div class="chain">
+        <div class="step alarm"><b>ALARM</b><span>fault ≠ ok → standby, altijd</span></div>
+        <div class="step force"><b>FORCE CHARGE</b><span>SOC &lt; kritiek → laden, altijd</span></div>
+        <div class="step strat"><b>STRATEGIE</b><span>gekozen modus</span></div>
+        <div class="step"><b>HOLDS</b><span>5–10 min anti-flapping</span></div>
+        <div class="step"><b>THROTTLE</b><span>≥60 s &amp; ≥200 W delta</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ KWARTIERPIEK ============ -->
+  <section>
+    <div class="eyebrow">capaciteitstarief · fluvius</div>
+    <h2>Kwartierpiek-tracker</h2>
+    <div class="panel">
+      <p style="color:var(--dim)">Fluvius factureert op het hoogste gemiddelde importvermogen per
+      <b style="color:var(--text)">klok-kwartier</b> (:00 / :15 / :30 / :45) van de maand. De tracker
+      integreert importvermogen tijdgewogen binnen het lopende kwartier:</p>
+
+      <div class="qbar">
+        <div class="qfill"></div><div class="qrest"></div>
+        <span class="qlabel" style="left:12px;color:var(--green)">verstreken · gemeten energie</span>
+        <span class="qlabel" style="right:12px;color:var(--pink)">resterend · nog te beïnvloeden</span>
+      </div>
+      <div class="qticks"><span>:00</span><span>lopend kwartier — 900 s</span><span>:15</span></div>
+
+      <div class="formula">
+        P<sub>proj</sub> = ( <span class="g">E<sub>zover</sub></span> + P<sub>nu</sub> × <span class="p">t<sub>rest</sub></span> ) / 900&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;discharge = P<sub>nu</sub> − budget&nbsp;&nbsp;waar&nbsp;&nbsp;budget = ( drempel × 900 − <span class="g">E<sub>zover</sub></span> ) / <span class="p">t<sub>rest</sub></span>
+      </div>
+
+      <table>
+        <tbody><tr><th>entiteit</th><th>antwoord op</th></tr>
+        <tr><td>sensor.sofar_quarter_time_remaining</td><td>Hoelang geldt de lopende meting nog? (+ eindtijd, mm:ss)</td></tr>
+        <tr><td>sensor.sofar_quarter_avg_w</td><td>Wat is het tijdgewogen gemiddelde tot nu toe?</td></tr>
+        <tr><td>sensor.sofar_quarter_projected_w</td><td>Waar eindigt dit kwartier als het huidige vermogen aanhoudt?</td></tr>
+        <tr><td>sensor.sofar_quarter_budget_w</td><td>Hoeveel mag ik nog trekken zonder de drempel te breken?</td></tr>
+        <tr><td>sensor.sofar_monthly_peak_w</td><td>Hoogste afgesloten kwartier deze maand (persistent, maand-rollover)</td></tr>
+        <tr><td>binary_sensor.sofar_peak_risk</td><td>Gaat dit kwartier mijn maandpiek verhogen? → notificatie-trigger</td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <!-- ============ HARDWARE PINOUT ============ -->
+  <section>
+    <div class="eyebrow">hardware</div>
+    <h2>Bedrading ESP32 ↔ MAX3485 ↔ ME3000SP</h2>
+    <div class="panel">
+      <div class="pinout">
+        <div class="pincol">
+          <div class="pin"><b>ESP32</b> GPIO17 (TX) → DI</div>
+          <div class="pin"><b>ESP32</b> GPIO16 (RX) ← RO</div>
+          <div class="pin"><b>ESP32</b> GPIO4 → DE + RE</div>
+          <div class="pin"><b>ESP32</b> 3.3V → VCC · GND → GND</div>
+        </div>
+        <div class="buslines">MAX3485<br>━━ A ━━▶<br>━━ B ━━▶<br>half-duplex</div>
+        <div class="pincol right">
+          <div class="pin"><b>ME3000SP</b> 485s-A</div>
+          <div class="pin"><b>ME3000SP</b> 485s-B</div>
+          <div class="pin"><b>Protocol</b> Modbus FC 0x42</div>
+          <div class="pin"><b>Mode</b> Passive (via display-menu)</div>
+        </div>
+      </div>
+      <div class="warn">⚠ MAX3485 = 3.3 V-variant. GPIO4 schakelt DE+RE sámen: hoog = zenden, laag = luisteren.</div>
+    </div>
+  </section>
+
+  <!-- ============ REPO ============ -->
+  <section>
+    <div class="eyebrow">repository</div>
+    <h2>Wat zit waar</h2>
+    <div class="panel">
+      <pre class="tree"><span class="d">custom_components/sofar_me3000sp/</span>   <span class="c">← de integratie (HACS)</span>
+  <span class="f">__init__.py</span>                       <span class="c">automation engine · strategieën · kwartier-tracker</span>
+  <span class="f">sensor.py · binary_sensor.py</span>      <span class="c">rapporterende entiteiten (store-readers)</span>
+  <span class="f">number.py · select.py</span>             <span class="c">tunables + strategie-keuze (restore-persistent)</span>
+  <span class="f">config_flow.py · services.yaml</span>    <span class="c">UI-setup · set_mode / set_*_rate</span>
+<span class="d">esphome/</span>
+  <span class="f">sofar-me3000sp-esp32.yaml</span>         <span class="c">volledige ESP32-config · Modbus 0x42</span>
+  <span class="f">secrets.yaml.example</span>              <span class="c">template — echte secrets staan in .gitignore</span>
+<span class="d">blueprints/automation/</span>              <span class="c">6 stuks — importeerbaar via source_url</span>
+  <span class="f">charge_on_export · discharge_on_import · force_charge_low_soc</span>
+  <span class="f">alarm_standby · baseline_auto · return_auto_balanced</span>
+<span class="d">home-assistant/</span>
+  <span class="d">dashboards/</span>                       <span class="c">4 Lovelace-views</span>
+    <span class="f">control_center</span>                  <span class="c">alle instellingen centraal (Control Center-principe)</span>
+    <span class="f">live_decision</span>                   <span class="c">decision reason + kwartierdata realtime</span>
+    <span class="f">mushroom_basic · wall_panel</span>     <span class="c">compacte kaarten · muurpaneel</span>
+  <span class="d">packages/</span>                         <span class="c">2 YAML-packages (o.a. template-sensors standalone)</span>
+<span class="d">docs/</span>                               <span class="c">INSTALLATIE · ARCHITECTUUR · AANPASSEN · TROUBLESHOOTING</span></pre>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="pagga">░█▄█░█▀█░█▀▄░░░█▀▀░█▀▀░▀█▀░█▀▀░█▀█░█▀▀░█▀▀░░░█░░░█▀█░█▀▄
+░█░█░█▀█░█░█░░░▀▀█░█░░░░█░░█▀▀░█░█░█░░░█▀▀░░░█░░░█▀█░█▀▄
+░▀░▀░▀░▀░▀▀░░░░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀░░░▀▀▀░▀░▀░▀▀░</div>
+    <div class="motto">"Gissen is missen, gokken is jokken." · docs-as-code · v2.5.3 · 2026</div>
+  </footer>
+
+</div>
+
+
+</body></html>
