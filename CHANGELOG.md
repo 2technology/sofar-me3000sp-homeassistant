@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.4.0 — 2026-07-08
+
+### Peak-shaving geoptimaliseerd — 3-zone logica
+
+De peak-shaving strategie is herschreven met een 3-zone beslissingsmodel:
+
+#### Zone 1: RED (projectie > drempel)
+- Actieve ontlading om de kwartierprojectie terug naar de drempel te brengen
+- Discharge rate wordt wiskundig berekend: exact genoeg om `(energy + (import - discharge) × remaining) / 900 ≤ threshold`
+- Bij kwartiereinde (>895s): directe overshoot compensatie i.p.v. budget-based
+
+#### Zone 2: YELLOW (projectie > 90% van drempel) — NIEUW
+- Pre-emptieve gentle discharge om te voorkomen dat de projectie RED bereikt
+- Alleen actief als het kwartier nog >60s te gaan heeft en SOC gezond is
+- Voorkomt "te laat" reacties bij sluipende stijgingen
+
+#### Zone 3: GREEN (geen piekrisico)
+- (a) PV surplus → charge met hold time (ongewijzigd)
+- (b) **Recovery charge** — NIEUW: als SOC < 60% en geen piekrisico, laad de batterij uit het net (50% van max rate) om klaar te zijn voor de volgende piek
+- (c) Geen actie → auto
+
+### Verbeteringen
+- **Discharge rate limiting bij kwartiereinde**: voorkomt excessieve ontlading als het kwartier bijna voorbij is
+- **Pre-emptive zone**: de batterij begint eerder met meedraaien, voorkomt "te laat" reacties
+- **Recovery charge**: na een piek laadt de batterij zichzelf weer op uit het net, klaar voor de volgende piek
+
 ## v2.3.0 — 2026-07-04
 
 ### ⚠️ Breaking

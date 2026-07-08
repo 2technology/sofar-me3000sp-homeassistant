@@ -387,20 +387,27 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
         _set_hold(store, None, None, 0)
         return
 
-    # === PEAK-SHAVING STRATEGY ===
-    # Controls the *projected clock-quarter average* — what Fluvius bills —
-    # not the instantaneous import. A short spike is harmless; a quarter
-    # whose projection exceeds the threshold is not.
+    # === PEAK-SHAVING STRATEGY (optimized) ===
+    # Controls the *projected clock-quarter average* — what Fluvius bills.
+    # Three zones:
+    #   1. RED: projection > threshold → active discharge to flatten the quarter
+    #   2. YELLOW: projection > 90% of threshold → pre-emptive gentle discharge
+    #   3. GREEN: no risk → charge on surplus, or recovery charge, or auto
     if strategy == STRATEGY_PEAK_SHAVING:
         projected = store.get("q_projected_w", 0)
         budget = store.get("q_budget_w", peak_threshold)
         remaining = store.get("q_remaining_s", 0)
+        pre_emptive_threshold = int(peak_threshold * 0.9)
 
+        # --- ZONE 1: RED — projection exceeds threshold ---
         if projected > peak_threshold:
             if soc > soc_min_discharge:
-                # Battery must cover import above the sustainable budget to
-                # bring the projection back to the threshold.
-                needed = max(0, int(import_w - budget))
+                # Calculate exactly how much discharge is needed to bring
+                # the quarter average down to the threshold.
+                # Target: (energy + (import_w - discharge_w) * remaining) / 900 <= threshold
+                # → discharge_w >= import_w - (threshold * 900 - energy) / remaining
+                # Quarter almost over: cover the overshoot directly instead of budget-based
+                needed = max(0, int(import_w - budget)) if remaining >= 5 else max(0, int(import_w - peak_threshold))
                 discharge_w = min(needed + int(discharge_margin), DEFAULT_MAX_RATE)
                 if discharge_w > 0:
                     if current_mode != MODE_DISCHARGE:
@@ -410,17 +417,16 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                         store["last_discharge_rate_update"] = now
                         store["last_discharge_rate"] = discharge_w
                     store["decision_reason"] = (
-                        f"Peak shaving: projection {projected}W > {peak_threshold:.0f}W "
-                        f"(quarter: {_fmt_mmss(remaining)} left) → discharge @ {store['last_discharge_rate']}W"
+                        f"Peak shaving RED: projection {projected}W > {peak_threshold:.0f}W "
+                        f"(quarter: {_fmt_mmss(remaining)} left, budget {budget}W) → discharge @ {store['last_discharge_rate']}W"
                     )
                     _set_hold(store, None, None, 0)
                     store["charge_hold_start"] = None
                     store["balance_hold_start"] = None
                     return
             else:
-                # Honest reason: the threat is real but the battery can't help.
                 store["decision_reason"] = (
-                    f"Peak shaving: projection {projected}W > {peak_threshold:.0f}W "
+                    f"Peak shaving RED: projection {projected}W > {peak_threshold:.0f}W "
                     f"but SOC {soc:.0f}% ≤ min {soc_min_discharge:.0f}% → cannot discharge"
                 )
                 _set_hold(store, None, None, 0)
@@ -428,7 +434,33 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                     await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
                 return
 
-        # No peak risk: charge on surplus (with hold), else back to auto.
+        # --- ZONE 2: YELLOW — pre-emptive (90-100% of threshold) ---
+        # Start a gentle discharge to prevent the projection from reaching RED.
+        # Only if SOC is healthy and the quarter is early enough to matter.
+        if projected > pre_emptive_threshold and remaining > 60 and soc > soc_min_discharge:
+            # Gentle discharge: cover just the excess above 90% of threshold
+            pre_emptive_needed = max(0, int(import_w - budget * 0.9))
+            discharge_w = min(pre_emptive_needed, DEFAULT_MAX_RATE)
+            if discharge_w > 0:
+                if current_mode != MODE_DISCHARGE:
+                    await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_DISCHARGE)
+                if _should_update_rate(store, "last_discharge_rate", "last_discharge_rate_update", discharge_w, now):
+                    await _set_number(hass, data[CONF_SOFAR_DISCHARGE_RATE_ENTITY], discharge_w)
+                    store["last_discharge_rate_update"] = now
+                    store["last_discharge_rate"] = discharge_w
+                store["decision_reason"] = (
+                    f"Peak shaving YELLOW: projection {projected}W approaching {peak_threshold:.0f}W "
+                    f"(90% = {pre_emptive_threshold}W, quarter: {_fmt_mmss(remaining)} left) → pre-emptive discharge @ {store['last_discharge_rate']}W"
+                )
+                _set_hold(store, None, None, 0)
+                store["charge_hold_start"] = None
+                store["balance_hold_start"] = None
+                return
+
+        # --- ZONE 3: GREEN — no peak risk ---
+        # Priority: (a) charge on PV surplus, (b) recovery charge if SOC low, (c) auto
+
+        # (a) Charge on PV surplus (with hold)
         if surplus_w > export_start and pv_w > pv_min and soc < soc_max_charge:
             if store.get("charge_hold_start") is None:
                 store["charge_hold_start"] = now
@@ -453,13 +485,38 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                 )
             return
 
+        # (b) Recovery charge: after a peak discharge, SOC is low and no surplus.
+        # Charge from grid to be ready for the next peak. Only if SOC is below
+        # a recovery threshold (e.g. 60%) and we're not in a peak-risk quarter.
+        recovery_soc = min(soc_max_charge, 60)
+        if soc < recovery_soc and projected < pre_emptive_threshold:
+            if store.get("charge_hold_start") is None:
+                store["charge_hold_start"] = now
+                _set_hold(store, "charge", now, CHARGE_HOLD_SECONDS)
+                store["decision_reason"] = f"Peak shaving recovery charge pending: SOC {soc:.0f}% < {recovery_soc:.0f}% (hold {_fmt_mmss(CHARGE_HOLD_SECONDS)})"
+            elif now - store["charge_hold_start"] >= CHARGE_HOLD_SECONDS:
+                # Charge at a moderate rate from the grid
+                recovery_rate = min(1500, int(DEFAULT_MAX_RATE * 0.5))
+                if current_mode != MODE_CHARGE:
+                    await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
+                if _should_update_rate(store, "last_charge_rate", "last_charge_rate_update", recovery_rate, now):
+                    await _set_number(hass, data[CONF_SOFAR_CHARGE_RATE_ENTITY], recovery_rate)
+                    store["last_charge_rate_update"] = now
+                    store["last_charge_rate"] = recovery_rate
+                store["decision_reason"] = f"Peak shaving recovery: SOC {soc:.0f}% < {recovery_soc:.0f}% → charge @ {recovery_rate}W from grid"
+                _set_hold(store, None, None, 0)
+                store["discharge_hold_start"] = None
+                store["balance_hold_start"] = None
+            return
+
+        # (c) No action needed
         store["charge_hold_start"] = None
         _set_hold(store, None, None, 0)
         if current_mode not in (MODE_AUTO, MODE_STANDBY):
             await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
         store["decision_reason"] = (
-            f"Peak shaving standby: projection {projected}W ≤ {peak_threshold:.0f}W "
-            f"(quarter: {_fmt_mmss(remaining)} left, budget {budget}W) → auto"
+            f"Peak shaving GREEN: projection {projected}W ≤ {pre_emptive_threshold}W "
+            f"(threshold {peak_threshold:.0f}W, quarter: {_fmt_mmss(remaining)} left, budget {budget}W) → auto"
         )
         return
 

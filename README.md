@@ -9,7 +9,7 @@
 > **HACS custom integration for smart battery inverter control** — driven by
 > external truth sources (smart meter + PV), not the SOFAR's internal CT clamps.
 
-[![Version](https://img.shields.io/badge/version-2.3.0-39FF8A?style=flat-square&labelColor=0E1A2B)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4.0-39FF8A?style=flat-square&labelColor=0E1A2B)](CHANGELOG.md)
 [![HACS](https://img.shields.io/badge/HACS-custom-FF5C8A?style=flat-square&labelColor=0E1A2B)](https://hacs.xyz/)
 [![Home Assistant](https://img.shields.io/badge/Home_Assistant-2024.2%2B-39FF8A?style=flat-square&labelColor=0E1A2B)](https://www.home-assistant.io/)
 [![Protocol](https://img.shields.io/badge/Modbus-FC_0x42_passive-FF5C8A?style=flat-square&labelColor=0E1A2B)](docs/ARCHITECTUUR.md)
