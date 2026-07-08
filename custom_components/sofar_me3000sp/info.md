@@ -28,3 +28,8 @@ actuator over ESPHome (ESP32 + MAX3485, Modbus FC 0x42 in Passive Mode).
 
 Full documentation, wiring diagram, dashboards and blueprints:
 [github.com/2technology/sofar-me3000sp-homeassistant](https://github.com/2technology/sofar-me3000sp-homeassistant)
+
+
+---
+
+🌐 **Visual one-page reference:** https://2technology.github.io/sofar-me3000sp-homeassistant/

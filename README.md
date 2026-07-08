@@ -15,7 +15,7 @@ _Driven by your smart meter + PV inverter. The SOFAR is the actuator, Home Assis
 > **Mad Science Lab operating principle:** *"Gissen is missen, gokken is jokken."*  
 > Every decision is measured, stored, and reported. The sensors read the store — they never invent their own logic.
 
-[![Version](https://img.shields.io/badge/version-2.5.3-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.5.4-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
 [![HACS](https://img.shields.io/badge/HACS-custom-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](https://hacs.xyz/)
 [![Home Assistant](https://img.shields.io/badge/Home_Assistant-2024.2%2B-39FF8A?style=for-the-badge&labelColor=0E1A2B)](https://www.home-assistant.io/)
 [![Protocol](https://img.shields.io/badge/Modbus-FC_0x42_passive-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](docs/ARCHITECTUUR.md)
@@ -23,6 +23,7 @@ _Driven by your smart meter + PV inverter. The SOFAR is the actuator, Home Assis
 
 [![CI](https://img.shields.io/github/actions/workflow/status/2technology/sofar-me3000sp-homeassistant/validate.yml?branch=main&style=flat-square&label=validate&labelColor=0E1A2B&color=39FF8A)](https://github.com/2technology/sofar-me3000sp-homeassistant/actions)
 [![Tests](https://img.shields.io/github/actions/workflow/status/2technology/sofar-me3000sp-homeassistant/test.yml?branch=main&label=tests&style=flat-square&labelColor=0E1A2B&color=39FF8A)](https://github.com/2technology/sofar-me3000sp-homeassistant/actions)
+[![Visual reference](https://img.shields.io/badge/visual_reference-GitHub_Pages-FF5C8A?style=flat-square&labelColor=0E1A2B)](https://2technology.github.io/sofar-me3000sp-homeassistant/)
 
 </div>
 
@@ -368,7 +369,7 @@ Copy them to `/config/blueprints/automation/` or import via `source_url` in each
 
 ## 📚 Documentation
 
-- [`docs/index.html`](docs/index.html) — **visual one-page architecture reference** *(open in browser / GitHub Pages)*
+- [`docs/index.html`](docs/index.html) — **visual one-page architecture reference** · [🌐 live op GitHub Pages](https://2technology.github.io/sofar-me3000sp-homeassistant/)
 - [`docs/INSTALLATIE.md`](docs/INSTALLATIE.md) — step-by-step installation guide *(Dutch)*
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — sensors unavailable, Modbus CRC errors, mode not changing
 - [`docs/ARCHITECTUUR.md`](docs/ARCHITECTUUR.md) — the control strategy in depth
