@@ -12,7 +12,7 @@
 
 _Driven by your smart meter + PV inverter. The SOFAR is the actuator, Home Assistant is the brain._
 
-[![Version](https://img.shields.io/badge/version-2.5.0-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.5.1-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
 [![HACS](https://img.shields.io/badge/HACS-custom-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](https://hacs.xyz/)
 [![Home Assistant](https://img.shields.io/badge/Home_Assistant-2024.2%2B-39FF8A?style=for-the-badge&labelColor=0E1A2B)](https://www.home-assistant.io/)
 [![Protocol](https://img.shields.io/badge/Modbus-FC_0x42_passive-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](docs/ARCHITECTUUR.md)

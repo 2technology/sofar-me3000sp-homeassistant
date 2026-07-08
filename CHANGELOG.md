@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.5.1 — 2026-07-08
+
+### README visual refresh
+
+- Centered hero section with ASCII banner and 7 badges (version, HACS, HA, Modbus, license, CI, tests)
+- Feature cards explaining the external-truth approach
+- Quick-start checklist with 6 actionable steps
+- Emoji-headed sections for faster scanning
+- Strategies table with icons and when-to-use column
+- Centered hardware wiring diagram
+- Compact callouts and improved repository map
+- Pure documentation polish — no functional changes
+
 ## v2.5.0 — 2026-07-08
 
 ### Forecast-aware strategieën (Solcast integratie)
