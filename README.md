@@ -14,6 +14,8 @@
 [![Home Assistant](https://img.shields.io/badge/Home_Assistant-2024.2%2B-39FF8A?style=flat-square&labelColor=0E1A2B)](https://www.home-assistant.io/)
 [![Protocol](https://img.shields.io/badge/Modbus-FC_0x42_passive-FF5C8A?style=flat-square&labelColor=0E1A2B)](docs/ARCHITECTUUR.md)
 [![License](https://img.shields.io/badge/license-MIT-E0E0E0?style=flat-square&labelColor=0E1A2B)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/2technology/sofar-me3000sp-homeassistant/validate.yml?branch=main&style=flat-square&labelColor=0E1A2B)](https://github.com/2technology/sofar-me3000sp-homeassistant/actions)
+[![Tests](https://img.shields.io/github/actions/workflow/status/2technology/sofar-me3000sp-homeassistant/test.yml?branch=main&label=tests&style=flat-square&labelColor=0E1A2B)](https://github.com/2technology/sofar-me3000sp-homeassistant/actions)
 
 **Signal path:** smart meter + PV → Home Assistant decides → ESP32 + MAX3485 →
 Modbus RS485 → SOFAR ME3000SP acts. The inverter is treated as a dumb actuator;
@@ -30,6 +32,7 @@ trust it.
 - [Install without HACS](#install-without-hacs)
 - [ESPHome firmware](#esphome-firmware)
 - [Strategies](#strategies)
+- [Forecast-aware decisions (optional)](#forecast-aware-decisions-optional)
 - [Quarter-peak tracking (capacity tariff)](#quarter-peak-tracking-capacity-tariff)
 - [What the automation does](#what-the-automation-does)
 - [Tuning](#tuning)
@@ -115,6 +118,9 @@ No YAML knowledge required.
 | SOFAR discharge rate | ESPHome discharge rate number | `number.sofar_me3000sp_..._discharge_rate` |
 | SOFAR battery SOC | ESPHome SOC sensor | `sensor.sofar_me3000sp_..._battery_soc` |
 | SOFAR fault messages | ESPHome fault sensor | `sensor.sofar_me3000sp_..._fault_messages` |
+| PV forecast today *(optional)* | Solcast forecast today (kWh) | `sensor.solcast_pv_forecast_forecast_today` |
+| PV forecast tomorrow *(optional)* | Solcast forecast tomorrow (kWh) | `sensor.solcast_pv_forecast_forecast_tomorrow` |
+| PV forecast next hour *(optional)* | Solcast forecast next hour (Wh) | `sensor.solcast_pv_forecast_forecast_next_hour` |
 
 > 💡 Picked the wrong entity? **Settings → Devices & Services → SOFAR ME3000SP
 > → Configure** lets you change entities without reinstalling.
@@ -125,7 +131,8 @@ No YAML knowledge required.
 - **7 binary sensors** — charging, discharging, exporting, importing, balanced, alarm, **peak risk**
 - **14 tunable thresholds** — all persistent across restarts
 - **1 strategy selector** — persistent across restarts
-- built-in automation logic + **3 services** for manual control
+- **3 optional forecast inputs** — Solcast or similar, makes strategies smarter
+- built-in automation logic + **3 services** for manual control (multi-entry safe)
 
 ---
 
@@ -214,6 +221,28 @@ Control Center dashboard. The selection survives restarts.
 **Priority chain** (evaluated before any strategy):
 `ALARM → standby` › `SOC critical → force charge` › *selected strategy* ›
 hold timers (5–10 min anti-flapping) › rate throttle (≥ 60 s, ≥ 200 W delta).
+
+---
+
+## Forecast-aware decisions (optional)
+
+If you provide PV forecast entities (e.g. [Solcast](https://solcast.com/)) in the
+config wizard, the strategies become smarter:
+
+| Strategy | Without forecast | With forecast |
+|---|---|---|
+| **Peak shaving** — recovery charge | Always charges from grid if SOC < 60% | Skips grid charging if tomorrow ≥ 15 kWh PV or next hour ≥ 1000 Wh — waits for free solar instead |
+| **Self-consumption** — charge threshold | Fixed at 400 W | Lowered to 200 W on high-PV days (≥ 15 kWh), raised to 600 W on low-PV days (< 10 kWh) |
+
+The decision reason shows the forecast influence:
+`Self-consumption: surplus 520W → charge @ 370W [forecast: 22.1kWh today, threshold 200W]`
+
+`Peak shaving GREEN: SOC 42% < 60% but forecast OK (tomorrow 28.8kWh) → waiting for PV, auto`
+
+Forecast data is also available as attributes on the decision reason sensor:
+`forecast_today_kwh`, `forecast_tomorrow_kwh`, `forecast_next_hour_wh`, `forecast_available`.
+
+> Fully backwards-compatible: no forecast entities = same behaviour as before.
 
 ---
 
@@ -369,6 +398,9 @@ in each file, then **Settings → Automations & Scenes → Blueprints**.
 | `home-assistant/packages/` | YAML package alternative + standalone template sensors |
 | `docs/` | Installation · Architecture · Customisation · Troubleshooting *(Dutch, translations welcome)* |
 | `assets/` | Architecture photo + wiring diagram |
+| `tests/test_quarter_tracker.py` | Unit tests for the quarter-peak tracker (analytically derived) |
+| `.github/workflows/` | CI: hassfest + HACS validation + ruff lint + pytest |
+| `CONTRIBUTING.md` | Guidelines for contributors |
 | `CHANGELOG.md` | Per-version history |
 
 ---
