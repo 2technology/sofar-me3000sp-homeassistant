@@ -345,6 +345,10 @@ class SofarDecisionReasonSensor(SensorEntity):
             "quarter_budget_w": store.get("q_budget_w"),
             "quarter_remaining_s": store.get("q_remaining_s"),
             "last_quarter_avg_w": store.get("last_quarter_avg_w"),
+            "forecast_today_kwh": store.get("forecast_today_kwh"),
+            "forecast_tomorrow_kwh": store.get("forecast_tomorrow_kwh"),
+            "forecast_next_hour_wh": store.get("forecast_next_hour_wh"),
+            "forecast_available": store.get("forecast_available", False),
         }
 
 
@@ -412,6 +416,10 @@ class SofarMonthlyPeakSensor(RestoreSensor):
             "peak_month": store.get("peak_month"),
             "peaked_at": store.get("monthly_peak_ts"),
             "last_quarter_avg_w": store.get("last_quarter_avg_w"),
+            "forecast_today_kwh": store.get("forecast_today_kwh"),
+            "forecast_tomorrow_kwh": store.get("forecast_tomorrow_kwh"),
+            "forecast_next_hour_wh": store.get("forecast_next_hour_wh"),
+            "forecast_available": store.get("forecast_available", False),
         }
 
 

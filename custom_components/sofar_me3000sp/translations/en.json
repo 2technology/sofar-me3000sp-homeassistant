@@ -12,7 +12,10 @@
           "sofar_charge_rate_entity": "SOFAR charge rate",
           "sofar_discharge_rate_entity": "SOFAR discharge rate",
           "sofar_soc_entity": "SOFAR battery SOC",
-          "sofar_fault_entity": "SOFAR fault messages"
+          "sofar_fault_entity": "SOFAR fault messages",
+          "forecast_today_entity": "PV forecast today (kWh) — optional",
+          "forecast_tomorrow_entity": "PV forecast tomorrow (kWh) — optional",
+          "forecast_next_hour_entity": "PV forecast next hour (Wh) — optional"
         }
       },
       "reconfigure": {
@@ -26,7 +29,10 @@
           "sofar_charge_rate_entity": "SOFAR charge rate",
           "sofar_discharge_rate_entity": "SOFAR discharge rate",
           "sofar_soc_entity": "SOFAR battery SOC",
-          "sofar_fault_entity": "SOFAR fault messages"
+          "sofar_fault_entity": "SOFAR fault messages",
+          "forecast_today_entity": "PV forecast today (kWh) — optional",
+          "forecast_tomorrow_entity": "PV forecast tomorrow (kWh) — optional",
+          "forecast_next_hour_entity": "PV forecast next hour (Wh) — optional"
         }
       }
     },

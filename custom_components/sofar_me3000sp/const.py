@@ -2,7 +2,7 @@
 
 DOMAIN = "sofar_me3000sp"
 
-VERSION = "2.4.0"
+VERSION = "2.5.0"
 
 # Config entry keys
 CONF_EXPORT_ENTITY = "export_entity"
@@ -13,6 +13,11 @@ CONF_SOFAR_CHARGE_RATE_ENTITY = "sofar_charge_rate_entity"
 CONF_SOFAR_DISCHARGE_RATE_ENTITY = "sofar_discharge_rate_entity"
 CONF_SOFAR_SOC_ENTITY = "sofar_soc_entity"
 CONF_SOFAR_FAULT_ENTITY = "sofar_fault_entity"
+
+# Optional forecast entities (Solcast or similar)
+CONF_FORECAST_TODAY_ENTITY = "forecast_today_entity"
+CONF_FORECAST_TOMORROW_ENTITY = "forecast_tomorrow_entity"
+CONF_FORECAST_NEXT_HOUR_ENTITY = "forecast_next_hour_entity"
 
 # Default thresholds
 DEFAULT_EXPORT_START_W = 400
@@ -140,6 +145,12 @@ NUMBER_NIGHT_END_HOUR = "sofar_night_end_hour"
 RATE_UPDATE_MIN_INTERVAL = 60  # seconds between rate updates
 RATE_CHANGE_THRESHOLD_W = 200  # minimum change to trigger rate update
 SMOOTHING_WINDOW_SECONDS = 120  # moving average window
+
+# === FORECAST-AWARE THRESHOLDS ===
+FORECAST_HIGH_KWH = 15.0       # kWh tomorrow: above this = good PV day
+FORECAST_LOW_KWH = 10.0        # kWh tomorrow: below this = poor PV day
+FORECAST_NEXT_HOUR_SKIP_WH = 1000  # Wh: if next hour > this, skip recovery charge
+RECOVERY_SOC_THRESHOLD = 60    # % SOC below which recovery charge is considered
 
 # === KWARTIERPIEK (capaciteitstarief) ===
 QUARTER_SECONDS = 900  # klok-kwartier zoals Fluvius meet (:00/:15/:30/:45)

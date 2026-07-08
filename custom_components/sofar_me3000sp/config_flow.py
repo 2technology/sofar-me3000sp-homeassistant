@@ -10,6 +10,9 @@ from homeassistant.helpers import selector
 
 from .const import (
     CONF_EXPORT_ENTITY,
+    CONF_FORECAST_NEXT_HOUR_ENTITY,
+    CONF_FORECAST_TODAY_ENTITY,
+    CONF_FORECAST_TOMORROW_ENTITY,
     CONF_IMPORT_ENTITY,
     CONF_PV_ENTITY,
     CONF_SOFAR_CHARGE_RATE_ENTITY,
@@ -48,6 +51,15 @@ def _build_schema(defaults: dict[str, str] | None = None) -> vol.Schema:
                 selector.EntitySelectorConfig(domain="sensor")
             ),
             vol.Required(CONF_SOFAR_FAULT_ENTITY, default=defaults.get(CONF_SOFAR_FAULT_ENTITY)): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Optional(CONF_FORECAST_TODAY_ENTITY, default=defaults.get(CONF_FORECAST_TODAY_ENTITY, "")): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Optional(CONF_FORECAST_TOMORROW_ENTITY, default=defaults.get(CONF_FORECAST_TOMORROW_ENTITY, "")): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Optional(CONF_FORECAST_NEXT_HOUR_ENTITY, default=defaults.get(CONF_FORECAST_NEXT_HOUR_ENTITY, "")): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="sensor")
             ),
         }

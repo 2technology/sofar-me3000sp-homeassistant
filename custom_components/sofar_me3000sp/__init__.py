@@ -34,6 +34,9 @@ from .const import (
     BALANCE_HOLD_SECONDS,
     CHARGE_HOLD_SECONDS,
     CONF_EXPORT_ENTITY,
+    CONF_FORECAST_NEXT_HOUR_ENTITY,
+    CONF_FORECAST_TODAY_ENTITY,
+    CONF_FORECAST_TOMORROW_ENTITY,
     CONF_IMPORT_ENTITY,
     CONF_PV_ENTITY,
     CONF_SOFAR_CHARGE_RATE_ENTITY,
@@ -59,6 +62,9 @@ from .const import (
     DISCHARGE_HOLD_SECONDS,
     DOMAIN,
     FORCE_CHARGE_TIMEOUT,
+    FORECAST_HIGH_KWH,
+    FORECAST_LOW_KWH,
+    FORECAST_NEXT_HOUR_SKIP_WH,
     MODE_AUTO,
     MODE_CHARGE,
     MODE_DISCHARGE,
@@ -79,6 +85,7 @@ from .const import (
     NUMBER_SOC_MIN_DISCHARGE,
     RATE_CHANGE_THRESHOLD_W,
     RATE_UPDATE_MIN_INTERVAL,
+    RECOVERY_SOC_THRESHOLD,
     SIGNAL_UPDATE,
     SMOOTHING_WINDOW_SECONDS,
     STRATEGY_AUTO,
@@ -282,6 +289,36 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
     night_start = int(_get_number_helper(hass, entry.entry_id, NUMBER_NIGHT_START_HOUR, DEFAULT_NIGHT_START_HOUR))
     night_end = int(_get_number_helper(hass, entry.entry_id, NUMBER_NIGHT_END_HOUR, DEFAULT_NIGHT_END_HOUR))
 
+    # Read optional PV forecast entities
+    forecast_today_kwh = 0.0
+    forecast_tomorrow_kwh = 0.0
+    forecast_next_hour_wh = 0.0
+    forecast_available = False
+    fc_today_eid = data.get(CONF_FORECAST_TODAY_ENTITY, "")
+    fc_tomorrow_eid = data.get(CONF_FORECAST_TOMORROW_ENTITY, "")
+    fc_next_hour_eid = data.get(CONF_FORECAST_NEXT_HOUR_ENTITY, "")
+    if fc_today_eid:
+        val = _get_entity_state(hass, fc_today_eid)
+        if val > 0:
+            forecast_today_kwh = val
+            forecast_available = True
+    if fc_tomorrow_eid:
+        val = _get_entity_state(hass, fc_tomorrow_eid)
+        if val > 0:
+            forecast_tomorrow_kwh = val
+            forecast_available = True
+    if fc_next_hour_eid:
+        val = _get_entity_state(hass, fc_next_hour_eid)
+        if val > 0:
+            forecast_next_hour_wh = val * 1000  # kWh → Wh
+            forecast_available = True
+
+    # Store forecast data for sensors
+    store["forecast_today_kwh"] = round(forecast_today_kwh, 1)
+    store["forecast_tomorrow_kwh"] = round(forecast_tomorrow_kwh, 1)
+    store["forecast_next_hour_wh"] = round(forecast_next_hour_wh)
+    store["forecast_available"] = forecast_available
+
     # Update the quarter-hour tracker on EVERY run, independent of the
     # strategy — the sensors and monthly peak must always be correct.
     _update_quarter_tracker(store, import_w, now_ts, peak_threshold)
@@ -299,6 +336,10 @@ async def _run_automation(hass: HomeAssistant, entry: ConfigEntry, store: dict):
             soc_force_charge=soc_force_charge, soc_force_charge_target=soc_force_charge_target,
             force_charge_rate=force_charge_rate, peak_threshold=peak_threshold,
             night_start=night_start, night_end=night_end,
+            forecast_today_kwh=forecast_today_kwh,
+            forecast_tomorrow_kwh=forecast_tomorrow_kwh,
+            forecast_next_hour_wh=forecast_next_hour_wh,
+            forecast_available=forecast_available,
         )
     finally:
         # Tell the reporting sensors that fresh state is available,
@@ -312,7 +353,9 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                   pv_min, balance_w, charge_margin, discharge_margin,
                   soc_max_charge, soc_min_discharge, soc_force_charge,
                   soc_force_charge_target, force_charge_rate, peak_threshold,
-                  night_start, night_end):
+                  night_start, night_end,
+                  forecast_today_kwh=0.0, forecast_tomorrow_kwh=0.0,
+                  forecast_next_hour_wh=0.0, forecast_available=False):
     """The actual decision tree. Every exit sets an honest decision_reason."""
     strategy = store.get("strategy", STRATEGY_SELF_CONSUMPTION)
 
@@ -487,15 +530,23 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
 
         # (b) Recovery charge: after a peak discharge, SOC is low and no surplus.
         # Charge from grid to be ready for the next peak. Only if SOC is below
-        # a recovery threshold (e.g. 60%) and we're not in a peak-risk quarter.
-        recovery_soc = min(soc_max_charge, 60)
-        if soc < recovery_soc and projected < pre_emptive_threshold:
+        # a recovery threshold and we're not in a peak-risk quarter.
+        # FORECAST-AWARE: if tomorrow's PV is high, skip recovery charge —
+        # the sun will charge the battery for free.
+        recovery_soc = min(soc_max_charge, RECOVERY_SOC_THRESHOLD)
+        skip_recovery = False
+        if forecast_available and forecast_tomorrow_kwh >= FORECAST_HIGH_KWH:
+            skip_recovery = True
+        # Also skip if next hour has enough PV to charge
+        if forecast_next_hour_wh >= FORECAST_NEXT_HOUR_SKIP_WH:
+            skip_recovery = True
+
+        if soc < recovery_soc and projected < pre_emptive_threshold and not skip_recovery:
             if store.get("charge_hold_start") is None:
                 store["charge_hold_start"] = now
                 _set_hold(store, "charge", now, CHARGE_HOLD_SECONDS)
-                store["decision_reason"] = f"Peak shaving recovery charge pending: SOC {soc:.0f}% < {recovery_soc:.0f}% (hold {_fmt_mmss(CHARGE_HOLD_SECONDS)})"
+                store["decision_reason"] = f"Peak shaving recovery pending: SOC {soc:.0f}% < {recovery_soc:.0f}% (hold {_fmt_mmss(CHARGE_HOLD_SECONDS)})"
             elif now - store["charge_hold_start"] >= CHARGE_HOLD_SECONDS:
-                # Charge at a moderate rate from the grid
                 recovery_rate = min(1500, int(DEFAULT_MAX_RATE * 0.5))
                 if current_mode != MODE_CHARGE:
                     await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_CHARGE)
@@ -507,6 +558,18 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
                 _set_hold(store, None, None, 0)
                 store["discharge_hold_start"] = None
                 store["balance_hold_start"] = None
+            return
+        elif soc < recovery_soc and skip_recovery:
+            # Forecast says PV is coming — wait for it instead of charging from grid
+            store["charge_hold_start"] = None
+            _set_hold(store, None, None, 0)
+            if current_mode not in (MODE_AUTO, MODE_STANDBY):
+                await _set_mode(hass, data[CONF_SOFAR_MODE_ENTITY], MODE_AUTO)
+            reason_fc = f"tomorrow {forecast_tomorrow_kwh:.1f}kWh" if forecast_tomorrow_kwh >= FORECAST_HIGH_KWH else f"next hour {forecast_next_hour_wh:.0f}Wh"
+            store["decision_reason"] = (
+                f"Peak shaving GREEN: SOC {soc:.0f}% < {recovery_soc:.0f}% but forecast OK "
+                f"({reason_fc}) → waiting for PV, auto"
+            )
             return
 
         # (c) No action needed
@@ -556,7 +619,16 @@ async def _decide(hass, data, store, now, now_ts, *, export_w, import_w, pv_w, s
 
     # === SELF-CONSUMPTION STRATEGY (default, also day-mode for night-save) ===
     # --- CHARGE: surplus export (smoothed + rate-limited) ---
-    if surplus_w > export_start and pv_w > pv_min and soc < soc_max_charge:
+    # FORECAST-AWARE: if today's forecast is high, lower the threshold to
+    # start charging earlier (more surplus is coming). If low, raise it.
+    fc_export_start = export_start
+    if forecast_available:
+        if forecast_today_kwh >= FORECAST_HIGH_KWH:
+            fc_export_start = max(100, int(export_start * 0.5))
+        elif forecast_today_kwh < FORECAST_LOW_KWH and forecast_today_kwh > 0:
+            fc_export_start = min(800, int(export_start * 1.5))
+
+    if surplus_w > fc_export_start and pv_w > pv_min and soc < soc_max_charge:
         if store.get("charge_hold_start") is None:
             store["charge_hold_start"] = now
             _set_hold(store, "charge", now, CHARGE_HOLD_SECONDS)

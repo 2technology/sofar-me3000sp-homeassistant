@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.5.0 — 2026-07-08
+
+### Forecast-aware strategieën (Solcast integratie)
+
+De integratie kan nu optioneel 3 PV-forecast entities lezen (bv. Solcast) om slimmere beslissingen te nemen.
+
+#### Config flow
+- 3 nieuwe optionele velden in de setup-wizard: forecast today, forecast tomorrow, forecast next hour
+- Volledig backwards-compatible: als geen forecast entities ingevuld, werkt alles zoals voorheen
+
+#### Peak-shaving: Recovery charge is forecast-aware
+- Als morgen ≥ 15 kWh PV verwacht wordt → **geen recovery charge uit net** (de zon zal de batterij gratis laden)
+- Als volgende uur ≥ 1000 Wh PV verwacht wordt → **skip recovery charge** (wacht op PV)
+- Als weinig PV verwacht wordt → laad uit net zoals voorheen
+- Decision reason toont waarom recovery wordt overgeslagen: `"forecast OK (tomorrow 28.8kWh) → waiting for PV"`
+
+#### Zelfconsumptie: Dynamische charge threshold
+- Hoge forecast vandaag (≥ 15 kWh) → **verlaag charge threshold naar 50%** (laad vroeger, meer surplus komt eraan)
+- Lage forecast vandaag (< 10 kWh) → **verhoog charge threshold naar 150%** (wees selectiever, bewaar batterij voor peak-shaving)
+- Decision reason toont de aangepaste threshold: `"[forecast: 22.1kWh today, threshold 200W]"`
+
+#### Nieuwe attributen op decision_reason sensor
+- `forecast_today_kwh`, `forecast_tomorrow_kwh`, `forecast_next_hour_wh`
+- `forecast_available` (bool)
+
 ## v2.4.0 — 2026-07-08
 
 ### Peak-shaving geoptimaliseerd — 3-zone logica
