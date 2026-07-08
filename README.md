@@ -396,7 +396,7 @@ in each file, then **Settings → Automations & Scenes → Blueprints**.
 | `blueprints/automation/` | 6 UI-configurable blueprints |
 | `home-assistant/dashboards/` | 4 Lovelace dashboards |
 | `home-assistant/packages/` | YAML package alternative + standalone template sensors |
-| `docs/` | Installation · Architecture · Customisation · Troubleshooting *(Dutch, translations welcome)* |
+| `docs/` | INSTALLATIE · ARCHITECTUUR · AANPASSEN · TROUBLESHOOTING *(Dutch, translations welcome)* |
 | `assets/` | Architecture photo + wiring diagram |
 | `tests/test_quarter_tracker.py` | Unit tests for the quarter-peak tracker (analytically derived) |
 | `.github/workflows/` | CI: hassfest + HACS validation + ruff lint + pytest |
@@ -433,8 +433,10 @@ in each file, then **Settings → Automations & Scenes → Blueprints**.
 
 ## Troubleshooting · Architecture · Changelog
 
+- [`docs/INSTALLATIE.md`](docs/INSTALLATIE.md) — step-by-step installation guide *(Dutch)*
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — sensors unavailable, Modbus CRC errors, mode not changing, and more
 - [`docs/ARCHITECTUUR.md`](docs/ARCHITECTUUR.md) — the control strategy in depth
+- [`docs/AANPASSEN.md`](docs/AANPASSEN.md) — adapting for your PV inverter or smart meter *(Dutch)*
 - [`CHANGELOG.md`](CHANGELOG.md) — including the full v2.2.0 rework of the decision engine and quarter-peak tracker
 
 ---

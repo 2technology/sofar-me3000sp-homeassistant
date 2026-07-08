@@ -14,3 +14,6 @@ __pycache__/
 
 # Secrets (nooit committen!)
 esphome/secrets.yaml
+
+# pytest cache
+.pytest_cache/
