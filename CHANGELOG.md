@@ -387,7 +387,7 @@ Nieuw: `home-assistant/dashboards/sofar_me3000sp_control_center.yaml` — een ce
 
 ### Toegevoegd
 - Mermaid-architectuurdiagram toegevoegd aan README en `docs/ARCHITECTUUR.md`
-- Fysieke opstellingsafbeelding toegevoegd aan README (`assets/sofar-me3000sp-architecture.png`)
+- Fysieke opstellingsafbeelding toegevoegd aan README (`assets/sofar-me3000sp-architecture-dark.svg` (PNG fallback included))
 - `entity.py` met shared `DeviceInfo` — alle entities gegroepeerd als één apparaat in HA
 - Dashboard-disclaimer: dashboards zijn ontworpen voor de HACS custom integration
 

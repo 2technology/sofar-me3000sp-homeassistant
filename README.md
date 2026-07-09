@@ -15,7 +15,7 @@ _Driven by your smart meter + PV inverter. The SOFAR is the actuator, Home Assis
 > **Mad Science Lab operating principle:** *"Gissen is missen, gokken is jokken."*  
 > Every decision is measured, stored, and reported. The sensors read the store — they never invent their own logic.
 
-[![Version](https://img.shields.io/badge/version-2.5.4-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.5.5-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
 [![HACS](https://img.shields.io/badge/HACS-custom-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](https://hacs.xyz/)
 [![Home Assistant](https://img.shields.io/badge/Home_Assistant-2024.2%2B-39FF8A?style=for-the-badge&labelColor=0E1A2B)](https://www.home-assistant.io/)
 [![Protocol](https://img.shields.io/badge/Modbus-FC_0x42_passive-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](docs/ARCHITECTUUR.md)
@@ -65,7 +65,10 @@ flowchart LR
     SOFAR -->|"SOC · fault · status"| HA
 ```
 
-![SOFAR ME3000SP architecture](/assets/sofar-me3000sp-architecture.png)
+<picture>
+  <source srcset="/assets/sofar-me3000sp-architecture-dark.svg" type="image/svg+xml">
+  <img src="/assets/sofar-me3000sp-architecture-dark.png" alt="SOFAR ME3000SP architecture diagram - smart meter and PV feed Home Assistant, which controls an ESP32/MAX3485 Modbus bridge to the SOFAR ME3000SP battery inverter">
+</picture>
 
 1. **Smart meter** reports import/export
 2. **PV inverter** reports production

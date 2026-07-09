@@ -1,0 +1,194 @@
+<svg viewBox="0 0 1040 800" xmlns="http://www.w3.org/2000/svg" font-family="'JetBrains Mono','Fira Code','Courier New',monospace">
+  <defs>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowSoft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#39FF8A"/>
+    </marker>
+    <marker id="arrPink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#FF5C8A"/>
+    </marker>
+    <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#FF5C5C"/>
+    </marker>
+    <marker id="arrAmber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#FFB84D"/>
+    </marker>
+    <pattern id="gridDots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#39FF8A" opacity="0.07"/>
+    </pattern>
+  </defs>
+
+  <!-- ============ BACKGROUND ============ -->
+  <rect width="1040" height="800" fill="#0E1A2B"/>
+  <rect width="1040" height="800" fill="url(#gridDots)"/>
+  <rect x="12" y="12" width="1016" height="776" fill="none" stroke="#1E3A5F" stroke-width="1.5" rx="6"/>
+  <rect x="18" y="18" width="1004" height="764" fill="none" stroke="#1E3A5F" stroke-width="0.5" rx="4" opacity="0.6"/>
+
+  <!-- ============ HEADER ============ -->
+  <text x="40" y="52" fill="#FF5C8A" font-size="12" letter-spacing="2">// MAD SCIENCE LAB :: ENERGY DIVISION</text>
+  <text x="40" y="80" fill="#39FF8A" font-size="22" font-weight="bold" letter-spacing="1" filter="url(#glow)">SOFAR ME3000SP — SYSTEM ARCHITECTURE</text>
+  <text x="40" y="100" fill="#7A94B0" font-size="11">AC-coupled storage · Pylontech 7.2 kWh · rev 2026-07</text>
+  <line x1="40" y1="114" x2="1000" y2="114" stroke="#1E3A5F" stroke-width="1"/>
+
+  <!-- ============ GRID (pylon) ============ -->
+  <g transform="translate(80,140)" stroke="#E0E0E0" stroke-width="2" fill="none" filter="url(#glow)">
+    <path d="M30,110 L45,20 L75,20 L90,110"/>
+    <path d="M45,20 L40,4 L80,4 L75,20"/>
+    <path d="M10,38 L110,38 M20,62 L100,62"/>
+    <path d="M10,38 L20,62 M110,38 L100,62 M20,62 L30,86 M100,62 L90,86 M30,86 L90,86"/>
+    <path d="M50,110 L60,86 L70,110" stroke-width="1.5"/>
+    <path d="M10,38 L14,50 M110,38 L106,50 M20,62 L26,74 M100,62 L94,74" stroke-width="1.2"/>
+  </g>
+  <text x="140" y="278" fill="#E0E0E0" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="1">GRID</text>
+
+  <!-- Grid <-> meter arrows -->
+  <line x1="120" y1="292" x2="120" y2="352" stroke="#FF5C5C" stroke-width="2.5" marker-end="url(#arrRed)" filter="url(#glow)"/>
+  <line x1="160" y1="352" x2="160" y2="292" stroke="#39FF8A" stroke-width="2.5" marker-end="url(#arrGreen)" filter="url(#glow)"/>
+  <text x="106" y="326" fill="#FF5C5C" font-size="10" text-anchor="end">IMPORT</text>
+  <text x="174" y="326" fill="#39FF8A" font-size="10">EXPORT</text>
+
+  <!-- ============ SMART METER ============ -->
+  <g transform="translate(65,360)">
+    <rect x="0" y="0" width="150" height="120" rx="8" fill="#12233B" stroke="#39FF8A" stroke-width="2" filter="url(#glow)"/>
+    <rect x="18" y="16" width="114" height="34" rx="3" fill="#0A1420" stroke="#1E3A5F"/>
+    <text x="75" y="39" fill="#39FF8A" font-size="15" text-anchor="middle" letter-spacing="2">4.213 kW</text>
+    <circle cx="30" cy="68" r="4" fill="#39FF8A" filter="url(#glowSoft)"/>
+    <circle cx="46" cy="68" r="4" fill="#FF5C8A"/>
+    <circle cx="62" cy="68" r="4" fill="#1E3A5F"/>
+    <text x="132" y="72" fill="#7A94B0" font-size="9" text-anchor="end">P1 PORT</text>
+    <rect x="18" y="82" width="114" height="6" fill="#0A1420"/>
+    <rect x="18" y="82" width="72" height="6" fill="#39FF8A" opacity="0.7"/>
+    <text x="75" y="106" fill="#7A94B0" font-size="9" text-anchor="middle" letter-spacing="1">FLUVIUS · DIGITAL</text>
+  </g>
+  <text x="140" y="502" fill="#E0E0E0" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="1">SMART METER</text>
+
+  <!-- Meter -> Home -->
+  <line x1="140" y1="516" x2="140" y2="574" stroke="#E0E0E0" stroke-width="2.5" marker-end="url(#arrGreen)" filter="url(#glow)"/>
+
+  <!-- ============ HOME ============ -->
+  <g transform="translate(85,584)" stroke="#E0E0E0" stroke-width="2.5" fill="none" filter="url(#glow)">
+    <path d="M10,50 L55,10 L100,50"/>
+    <path d="M20,44 L20,104 L90,104 L90,44"/>
+    <path d="M62,52 L48,74 L58,74 L46,96" stroke="#39FF8A" stroke-width="3"/>
+  </g>
+  <text x="140" y="716" fill="#E0E0E0" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="1">HOME LOADS</text>
+
+  <!-- ============ PV PANELS ============ -->
+  <g transform="translate(640,130)">
+    <g>
+      <rect x="0" y="0" width="130" height="150" rx="4" fill="#12233B" stroke="#39FF8A" stroke-width="2" filter="url(#glow)"/>
+      <g stroke="#1E3A5F" stroke-width="1">
+        <line x1="32.5" y1="2" x2="32.5" y2="148"/><line x1="65" y1="2" x2="65" y2="148"/><line x1="97.5" y1="2" x2="97.5" y2="148"/>
+        <line x1="2" y1="30" x2="128" y2="30"/><line x1="2" y1="60" x2="128" y2="60"/><line x1="2" y1="90" x2="128" y2="90"/><line x1="2" y1="120" x2="128" y2="120"/>
+      </g>
+      <text x="65" y="-12" fill="#E0E0E0" font-size="12" font-weight="bold" text-anchor="middle">PV STRING 1</text>
+    </g>
+    <g transform="translate(170,0)">
+      <rect x="0" y="0" width="130" height="150" rx="4" fill="#12233B" stroke="#39FF8A" stroke-width="2" filter="url(#glow)"/>
+      <g stroke="#1E3A5F" stroke-width="1">
+        <line x1="32.5" y1="2" x2="32.5" y2="148"/><line x1="65" y1="2" x2="65" y2="148"/><line x1="97.5" y1="2" x2="97.5" y2="148"/>
+        <line x1="2" y1="30" x2="128" y2="30"/><line x1="2" y1="60" x2="128" y2="60"/><line x1="2" y1="90" x2="128" y2="90"/><line x1="2" y1="120" x2="128" y2="120"/>
+      </g>
+      <text x="65" y="-12" fill="#E0E0E0" font-size="12" font-weight="bold" text-anchor="middle">PV STRING 2</text>
+    </g>
+  </g>
+
+  <!-- PV -> SMA (DC) -->
+  <path d="M705,286 C705,330 620,320 588,336" fill="none" stroke="#FFB84D" stroke-width="2.5" marker-end="url(#arrAmber)" filter="url(#glow)"/>
+  <path d="M875,286 C875,360 660,340 590,364" fill="none" stroke="#FFB84D" stroke-width="2.5" marker-end="url(#arrAmber)" filter="url(#glow)"/>
+  <text x="700" y="330" fill="#FFB84D" font-size="10" letter-spacing="1">DC IN</text>
+
+  <!-- ============ PV CONVERTOR (SMA) ============ -->
+  <g transform="translate(410,300)">
+    <rect x="0" y="0" width="180" height="130" rx="10" fill="#12233B" stroke="#FF5C8A" stroke-width="2" filter="url(#glow)"/>
+    <rect x="14" y="14" width="152" height="8" rx="2" fill="#0A1420"/>
+    <rect x="14" y="28" width="152" height="8" rx="2" fill="#0A1420"/>
+    <text x="90" y="66" fill="#FF5C8A" font-size="16" font-weight="bold" text-anchor="middle" letter-spacing="2" filter="url(#glow)">SMA</text>
+    <text x="90" y="84" fill="#7A94B0" font-size="10" text-anchor="middle">SUNNY BOY</text>
+    <circle cx="26" cy="108" r="4" fill="#39FF8A" filter="url(#glowSoft)"/>
+    <text x="40" y="112" fill="#7A94B0" font-size="9">MPPT OK</text>
+  </g>
+  <text x="500" y="452" fill="#E0E0E0" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="1">PV CONVERTOR</text>
+
+  <!-- SMA -> AC bus / meter -->
+  <path d="M410,350 C330,350 300,396 232,408" fill="none" stroke="#39FF8A" stroke-width="2.5" marker-end="url(#arrGreen)" filter="url(#glow)"/>
+  <text x="292" y="360" fill="#39FF8A" font-size="10" letter-spacing="1">AC 230V</text>
+
+  <!-- SMA -> SOFAR (AC coupling) -->
+  <line x1="500" y1="462" x2="500" y2="514" stroke="#39FF8A" stroke-width="2.5" marker-end="url(#arrGreen)" filter="url(#glow)"/>
+  <text x="512" y="494" fill="#39FF8A" font-size="10">AC BUS</text>
+
+  <!-- ============ BATTERY CONVERTOR (SOFAR) ============ -->
+  <g transform="translate(400,522)">
+    <rect x="0" y="0" width="200" height="150" rx="10" fill="#12233B" stroke="#39FF8A" stroke-width="2.5" filter="url(#glow)"/>
+    <rect x="20" y="18" width="120" height="46" rx="4" fill="#0A1420" stroke="#1E3A5F"/>
+    <text x="80" y="38" fill="#39FF8A" font-size="11" text-anchor="middle" letter-spacing="1">SOC 87%</text>
+    <text x="80" y="54" fill="#39FF8A" font-size="11" text-anchor="middle" letter-spacing="1">-1.50 kW</text>
+    <circle cx="162" cy="30" r="5" fill="#39FF8A" filter="url(#glowSoft)"/>
+    <circle cx="180" cy="30" r="5" fill="#FF5C8A"/>
+    <text x="100" y="92" fill="#E0E0E0" font-size="15" font-weight="bold" text-anchor="middle" letter-spacing="2">SOFAR</text>
+    <text x="100" y="110" fill="#7A94B0" font-size="11" text-anchor="middle" letter-spacing="1">ME3000SP</text>
+    <text x="100" y="134" fill="#FF5C8A" font-size="9" text-anchor="middle" letter-spacing="1">ESP32 · MODBUS RS485 · GPIO4/17/16</text>
+  </g>
+  <text x="500" y="696" fill="#E0E0E0" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="1">BATTERY CONVERTOR</text>
+
+  <!-- SOFAR -> meter -->
+  <path d="M400,560 C320,560 280,500 226,478" fill="none" stroke="#39FF8A" stroke-width="2.5" marker-end="url(#arrGreen)" filter="url(#glow)"/>
+  <text x="278" y="546" fill="#39FF8A" font-size="10" letter-spacing="1">AC 230V</text>
+
+  <!-- SOFAR <-> battery -->
+  <line x1="612" y1="578" x2="702" y2="578" stroke="#FF5C8A" stroke-width="2.5" marker-end="url(#arrPink)" filter="url(#glow)"/>
+  <line x1="702" y1="608" x2="612" y2="608" stroke="#FF5C8A" stroke-width="2.5" marker-end="url(#arrPink)" filter="url(#glow)"/>
+  <text x="657" y="564" fill="#FF5C8A" font-size="10" text-anchor="middle" letter-spacing="1">DC 48V</text>
+
+  <!-- ============ PYLONTECH STACK ============ -->
+  <g transform="translate(714,506)">
+    <g>
+      <rect x="0" y="0" width="240" height="52" rx="5" fill="#12233B" stroke="#FF5C8A" stroke-width="2" filter="url(#glow)"/>
+      <text x="16" y="32" fill="#E0E0E0" font-size="11" font-weight="bold" letter-spacing="1">PYLONTECH US2000</text>
+      <circle cx="196" cy="26" r="4" fill="#39FF8A" filter="url(#glowSoft)"/>
+      <rect x="212" y="14" width="14" height="24" rx="2" fill="none" stroke="#FF5C8A" stroke-width="1.5"/>
+      <rect x="214" y="18" width="10" height="16" fill="#39FF8A" opacity="0.8"/>
+    </g>
+    <g transform="translate(0,60)">
+      <rect x="0" y="0" width="240" height="52" rx="5" fill="#12233B" stroke="#FF5C8A" stroke-width="2" filter="url(#glow)"/>
+      <text x="16" y="32" fill="#E0E0E0" font-size="11" font-weight="bold" letter-spacing="1">PYLONTECH US2000</text>
+      <circle cx="196" cy="26" r="4" fill="#39FF8A" filter="url(#glowSoft)"/>
+      <rect x="212" y="14" width="14" height="24" rx="2" fill="none" stroke="#FF5C8A" stroke-width="1.5"/>
+      <rect x="214" y="18" width="10" height="16" fill="#39FF8A" opacity="0.8"/>
+    </g>
+    <g transform="translate(0,120)">
+      <rect x="0" y="0" width="240" height="52" rx="5" fill="#12233B" stroke="#FF5C8A" stroke-width="2" filter="url(#glow)"/>
+      <text x="16" y="32" fill="#E0E0E0" font-size="11" font-weight="bold" letter-spacing="1">PYLONTECH US2000</text>
+      <circle cx="196" cy="26" r="4" fill="#39FF8A" filter="url(#glowSoft)"/>
+      <rect x="212" y="14" width="14" height="24" rx="2" fill="none" stroke="#FF5C8A" stroke-width="1.5"/>
+      <rect x="214" y="18" width="10" height="16" fill="#39FF8A" opacity="0.8"/>
+    </g>
+  </g>
+  <text x="834" y="700" fill="#E0E0E0" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="1">7.2 kWh BATTERY STACK</text>
+
+  <!-- ============ LEGEND ============ -->
+  <g transform="translate(640,388)">
+    <rect x="0" y="0" width="330" height="86" rx="6" fill="#0A1420" stroke="#1E3A5F" stroke-width="1.5"/>
+    <text x="14" y="20" fill="#7A94B0" font-size="10" letter-spacing="2">LEGEND</text>
+    <line x1="14" y1="36" x2="54" y2="36" stroke="#39FF8A" stroke-width="2.5" marker-end="url(#arrGreen)"/>
+    <text x="64" y="40" fill="#E0E0E0" font-size="10">AC 230V</text>
+    <line x1="150" y1="36" x2="190" y2="36" stroke="#FFB84D" stroke-width="2.5" marker-end="url(#arrAmber)"/>
+    <text x="200" y="40" fill="#E0E0E0" font-size="10">DC PV</text>
+    <line x1="14" y1="62" x2="54" y2="62" stroke="#FF5C8A" stroke-width="2.5" marker-end="url(#arrPink)"/>
+    <text x="64" y="66" fill="#E0E0E0" font-size="10">DC 48V BATT</text>
+    <line x1="150" y1="62" x2="190" y2="62" stroke="#FF5C5C" stroke-width="2.5" marker-end="url(#arrRed)"/>
+    <text x="200" y="66" fill="#E0E0E0" font-size="10">GRID IMPORT</text>
+  </g>
+
+  <!-- ============ FOOTER ============ -->
+  <text x="40" y="768" fill="#7A94B0" font-size="10" letter-spacing="1">Mad_Science_Lab/sofar-me3000sp-homeassistant</text>
+  <text x="1000" y="768" fill="#FF5C8A" font-size="10" text-anchor="end" letter-spacing="2">[ EVIL GENIUS APPROVED ]</text>
+</svg>
