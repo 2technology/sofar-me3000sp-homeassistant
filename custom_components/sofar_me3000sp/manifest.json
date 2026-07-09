@@ -14,5 +14,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/2technology/sofar-me3000sp-homeassistant/issues",
   "requirements": [],
-  "version": "2.5.8"
+  "version": "2.5.9"
 }
