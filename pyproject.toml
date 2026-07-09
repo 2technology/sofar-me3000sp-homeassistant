@@ -1,3 +1,20 @@
+[project]
+name = "sofar-me3000sp-homeassistant"
+version = "2.5.7"
+description = "HACS custom integration for smart SOFAR ME3000SP battery inverter control in Home Assistant"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "2technology"}
+]
+requires-python = ">=3.12"
+
+[project.urls]
+Homepage = "https://github.com/2technology/sofar-me3000sp-homeassistant"
+Documentation = "https://2technology.github.io/sofar-me3000sp-homeassistant/"
+Repository = "https://github.com/2technology/sofar-me3000sp-homeassistant"
+Issues = "https://github.com/2technology/sofar-me3000sp-homeassistant/issues"
+
 [tool.ruff]
 target-version = "py312"
 line-length = 120

@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest an improvement or new feature for the SOFAR ME3000SP Controller integration
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. Please describe the problem first, then the proposed solution.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or gap
+      description: What is missing or frustrating in the current integration?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe what you would like to see changed or added.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you tried workarounds or other strategies?
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Use case, screenshots, logs, or links to related docs.

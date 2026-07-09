@@ -15,7 +15,7 @@ _Driven by your smart meter + PV inverter. The SOFAR is the actuator, Home Assis
 > **Mad Science Lab operating principle:** *"Gissen is missen, gokken is jokken."*  
 > Every decision is measured, stored, and reported. The sensors read the store — they never invent their own logic.
 
-[![Version](https://img.shields.io/badge/version-2.5.7-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.5.8-39FF8A?style=for-the-badge&labelColor=0E1A2B)](CHANGELOG.md)
 [![HACS](https://img.shields.io/badge/HACS-custom-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](https://hacs.xyz/)
 [![Home Assistant](https://img.shields.io/badge/Home_Assistant-2024.2%2B-39FF8A?style=for-the-badge&labelColor=0E1A2B)](https://www.home-assistant.io/)
 [![Protocol](https://img.shields.io/badge/Modbus-FC_0x42_passive-FF5C8A?style=for-the-badge&labelColor=0E1A2B)](docs/ARCHITECTUUR.md)
